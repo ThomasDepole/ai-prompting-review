@@ -28,3 +28,4 @@ Thumbs.db
 __pycache__/
 session_data.json
 analysis_stats.json
+discovery_report.json

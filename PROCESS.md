@@ -51,8 +51,10 @@ ai-prompting-review/
 │           └── scorecard-template.md
 │
 ├── scripts/                      ← Python helper scripts (run from project root)
-│   ├── extract_sessions.py       ← Step 2: extracts all user messages → session_data.json
-│   └── analyse_sessions.py       ← Step 3: computes stats + recommends sample → analysis_stats.json
+│   ├── discover_cursor.py        ← Import step 1: scans .cursor folder, lists available projects
+│   ├── import_cursor.py          ← Import step 2: copies chosen sessions into ingestion/
+│   ├── extract_sessions.py       ← Analysis step 1: extracts user messages → session_data.json
+│   └── analyse_sessions.py       ← Analysis step 2: computes stats + recommends sample → analysis_stats.json
 │
 └── templates/                    ← Master templates (never edit directly — copy per developer)
     ├── analysis-report-template.md
@@ -173,13 +175,22 @@ Additional user message types:
 
 ## Running the Analysis
 
-### Step 0 — Confirm the Developer's Name
+### Step 0 — Confirm the Developer's Name and Check for Existing Reports
 
 Before doing anything else, confirm the full name of the developer being reviewed. This name is used as the folder name under `reports/` and as the label throughout all three output files.
 
 If the name was not supplied with the initial request, ask: **"What is the full name of the developer we're reviewing?"**
 
-Use the name exactly as provided (e.g. `Jane Smith`, not `jane-smith` or `JaneSmith`). The folder should be created at `reports/[Developer-Name]/[YYYY-MM]/` before writing any output files.
+Use the name exactly as provided (e.g. `Jane Smith`, not `jane-smith` or `JaneSmith`).
+
+**Check for an existing report before creating anything.** Look for a folder at `reports/[Developer-Name]/[YYYY-MM]/` where `[YYYY-MM]` is the current month. If that folder already exists and contains output files, tell the user:
+
+> *"I found an existing report for [Name] from [Month Year]. Would you like to overwrite it with a fresh analysis, or create a new version alongside it?"*
+
+- **Overwrite:** Proceed normally — the new outputs will replace the existing files.
+- **New version:** Create the output files with a version suffix, e.g. `[Name]-Prompting-Analysis-v2.md`, `[Name]-Scorecard-v2.html`, `scorecard-template-v2.md`. Increment the version number if v2 already exists.
+
+If no existing report is found, create the folder at `reports/[Developer-Name]/[YYYY-MM]/` and proceed.
 
 ---
 
@@ -539,6 +550,8 @@ Helper scripts (run from project root, outputs are gitignored):
 
 | File                          | Description                                                    |
 | ----------------------------- | -------------------------------------------------------------- |
+| `scripts/discover_cursor.py`  | Scans .cursor folder and lists available projects + session counts |
+| `scripts/import_cursor.py`    | Copies chosen sessions from .cursor into ingestion/ (supports --days filter) |
 | `scripts/extract_sessions.py` | Extracts all user messages from ingestion → `session_data.json`  |
 | `scripts/analyse_sessions.py` | Computes signal stats + recommends sample → `analysis_stats.json` |
 
@@ -550,6 +563,7 @@ Helper scripts (run from project root, outputs are gitignored):
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | March 2026 v1 | Initial process established. Python extraction script developed. Rubric v1 created. Folder structure defined: `ingestion/cursor-chats/`, `ingestion/other-chats/`, `reports/[Name]/[YYYY-MM]/`. Scorecard HTML and MD generation steps added. Step 0 added: confirm developer name before starting. PROCESS.md introduced as tool-agnostic process guide; CLAUDE.md and STARTER_PROMPT.md become thin bootstraps pointing here. |
 | March 2026 v2 | Added `scripts/` folder with `extract_sessions.py` (replaces inline extraction code block) and `analyse_sessions.py` (new pre-analysis stats script). Added tiered sampling strategy (6 large / 6 medium / 6 small sessions). Added score 3 definitions for all 9 categories. Updated subagent guidance: subagents are auto-spawned by Cursor agent, their presence is a positive signal, their content is not reviewed. Updated cursor rules section: explains what session-file signals indicate rules usage rather than directing reviewer to request the rules files. Clarified ingestion folder as single-person drop zone; project folder name = Cursor project slug. Fixed `CONTEXT.md` reference bug in analysis-report-template.md footer. |
+| March 2026 v3 | Improved `.cursor` folder discovery UX in CLAUDE.md: replaced "ask for username" with a three-option prompt (A: user folder path, B: full .cursor path, C: manual drop into ingestion). Added step-by-step instructions for Windows (`%USERPROFILE%`) and macOS (`Cmd+Shift+H`, hidden files tip). Added Step 0 guard in PROCESS.md: checks for an existing report for the current developer and month before starting — prompts user to overwrite or create a versioned copy (v2, v3, etc.). |
 
 ---
 
