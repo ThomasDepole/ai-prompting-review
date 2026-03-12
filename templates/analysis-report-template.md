@@ -124,4 +124,4 @@ Prompts worth saving and repeating as templates. These are either particularly w
 
 ---
 
-*Analysis produced using the AI Prompting Pattern Review process. See `CONTEXT.md` for methodology.*
+*Analysis produced using the AI Prompting Pattern Review process. See `PROCESS.md` for methodology.*

@@ -27,3 +27,4 @@ Thumbs.db
 *.pyc
 __pycache__/
 session_data.json
+analysis_stats.json

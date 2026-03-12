@@ -37,24 +37,30 @@ ai-prompting-review/
 │
 ├── ingestion/                    ← Drop session files here before running analysis
 │   ├── cursor-chats/             ← Cursor AI session JSONL files
-│   │   └── [project-name]/       ← One folder per project
-│   │       └── [uuid]/
+│   │   └── [project-name]/       ← One folder per Cursor project (use the Cursor
+│   │       └── [uuid]/              project folder name — useful context in reports)
 │   │           └── [uuid].jsonl
 │   └── other-chats/              ← Placeholder for future chat sources
 │                                    (e.g. ChatGPT exports, Copilot logs, etc.)
 │
-├── reports/                      ← All analysis outputs go here
+├── reports/                      ← All analysis outputs go here (gitignored)
 │   └── [Developer-Name]/         ← Subfolder per developer
 │       └── [YYYY-MM]/            ← Subfolder per month/run
 │           ├── [Name]-Prompting-Analysis.md
 │           ├── [Name]-Scorecard.html
 │           └── scorecard-template.md
 │
+├── scripts/                      ← Python helper scripts (run from project root)
+│   ├── extract_sessions.py       ← Step 2: extracts all user messages → session_data.json
+│   └── analyse_sessions.py       ← Step 3: computes stats + recommends sample → analysis_stats.json
+│
 └── templates/                    ← Master templates (never edit directly — copy per developer)
     ├── analysis-report-template.md
     ├── scorecard-mockup.html
     └── scorecard-template.md
 ```
+
+**Note on the ingestion folder:** The ingestion folder is a single-person drop zone — it holds sessions for one developer at a time. To run a review for a different developer, clear the ingestion folder and drop in their sessions. The `[project-name]` subfolder should match the developer's Cursor project folder name (found at `~/.cursor/projects/` on macOS or `C:\Users\[username]\.cursor\projects\` on Windows) — this name carries useful context when reading the analysis.
 
 ---
 
@@ -84,14 +90,23 @@ Everything typed by the user in the chat, including `<user_query>` blocks, `@` f
 When a developer triggers a saved command (e.g., `context-humdrum-data`), the full contents of that command are embedded directly in the user message. These are fully readable in the `.jsonl` file and look like a `<cursor_commands>` block at the top of a user turn.
 
 **Layer 3 — Auto-scoped `.mdc` rules (invisible — the blind spot):**
-Cursor rules stored in `.cursor/rules/*.mdc` with a `globs:` scope pattern are automatically injected by Cursor before the session starts. They do not appear anywhere in the session file. The AI silently follows them without attribution. You would only know they existed if:
-
-- The AI explicitly reads or creates a rule file (detectable via `.mdc` references in assistant responses)
-- The developer tells you about them during the review
+Cursor rules stored in `.cursor/rules/*.mdc` with a `globs:` scope pattern are automatically injected by Cursor before the session starts. They do not appear anywhere in the session file. The AI silently follows them without attribution.
 
 **What this means for the analysis:** Session files give a true picture of the developer's *chat prompting style* but an incomplete picture of their total *context engineering*. A developer who has invested heavily in `.cursor/rules/` files may look like they're giving sparse prompts, when in fact they've front-loaded architectural guidance invisibly.
 
-**Recommendation:** Always ask the developer to share their `.cursor/rules/` directory alongside their session files. Review the rules as part of the analysis.
+**How to detect cursor rules usage in session files — look for these signals:**
+
+- References to `.mdc` files anywhere in user or assistant messages (the `analyse_sessions.py` script flags these automatically)
+- AI responses that apply conventions or constraints the developer never stated in the current session — this suggests auto-injected rules are in effect
+- The developer referencing `.cursor/rules/` explicitly in conversation
+- A `<cursor_commands>` block that points to or configures rules
+
+**Scoring note:** When Reusability Investment appears low based on session files alone, note this limitation explicitly. A developer with substantial `.mdc` rules may deserve a higher score than session files suggest. Flag it and ask the developer to confirm during the review.
+
+**Layer 4 — Subagents (auto-spawned, not user-controlled):**
+When a Cursor agent determines that a task benefits from parallel execution, it automatically spawns subagents — independent agents with their own context window. Subagents are *not* created by the user directly; they are launched by the orchestrating agent based on task complexity. The presence of subagents in a session is therefore a **positive signal about the user's prompting**: it means their prompt was well-scoped and complex enough to trigger agent decomposition.
+
+Subagent sessions appear as a `subagents/` subdirectory inside a session folder. The `extract_sessions.py` script counts them but does not extract their content — the subagent JSONL files reflect the AI's internal work, not the developer's prompting behavior, so they are not relevant to the analysis.
 
 ---
 
@@ -182,64 +197,59 @@ You can group sessions by project to keep the analysis scoped.
 
 ### Step 2 — Extract User Messages
 
-Run the following Python script to extract all user messages from all sessions into a structured JSON file for analysis. Update the `base` path to point to the project you're analysing.
+Run the extraction script from the project root. It scans all projects under `ingestion/cursor-chats/`, extracts user messages, and records subagent presence.
 
-```python
-import json, os
-
-base = "ingestion/cursor-chats/project-name"
-sessions = []
-
-for session_id in sorted(os.listdir(base)):
-    fpath = os.path.join(base, session_id, f"{session_id}.jsonl")
-    if not os.path.exists(fpath):
-        continue
-
-    with open(fpath) as f:
-        lines = f.readlines()
-
-    user_msgs = []
-    assistant_turns = 0
-
-    for line in lines:
-        obj = json.loads(line)
-        role = obj.get('role', '')
-        if role == 'user':
-            content = obj['message']['content']
-            for c in content:
-                if c.get('type') == 'text':
-                    user_msgs.append(c['text'])
-        elif role == 'assistant':
-            assistant_turns += 1
-
-    sessions.append({
-        'id': session_id,
-        'total_lines': len(lines),
-        'user_turns': len(user_msgs),
-        'assistant_turns': assistant_turns,
-        'user_messages': user_msgs
-    })
-
-with open('session_data.json', 'w') as f:
-    json.dump(sessions, f, indent=2)
-
-print(f"Extracted {len(sessions)} sessions")
-for s in sessions:
-    print(f"  {s['id'][:8]}... | user: {s['user_turns']} | assistant: {s['assistant_turns']}")
 ```
+python scripts/extract_sessions.py
+```
+
+Output: `session_data.json` in the project root (gitignored).
+
+The script prints a summary of all sessions found, including subagent counts. Review this output before proceeding — if session counts look wrong, check that files are placed at the correct path (`ingestion/cursor-chats/[project-name]/[uuid]/[uuid].jsonl`).
 
 ---
 
-### Step 3 — Read the Data
+### Step 3 — Compute Pre-Analysis Stats and Select a Sample
 
-The analysis reads the raw text of every user message. Key things to look for:
+Run the analysis script from the project root:
+
+```
+python scripts/analyse_sessions.py
+```
+
+Output: `analysis_stats.json` in the project root (gitignored).
+
+This script computes quantitative signals across every session and classifies sessions by size:
+
+| Tier | User Turns | What it represents |
+|---|---|---|
+| **Large** | 9+ turns | Complex, multi-step work — most signal-rich |
+| **Medium** | 4–8 turns | Average sessions — typical prompting habits |
+| **Small** | 1–3 turns | Either very efficient sessions or abandoned attempts |
+
+**Recommended sample:** The script outputs up to 6 sessions from each tier (large / medium / small), ranked by richness. Read the sampled sessions in full — don't try to read every session. If the sample doesn't produce a clear enough picture of a particular habit (e.g., no debugging sessions in the sample), add 3 more from the relevant tier until the pattern is clear.
+
+**What the stats tell you before you read a single session:**
+
+- `at_refs` — what percentage of messages use `@` file references
+- `cursor_commands` — whether the developer uses preloaded context commands (and which ones)
+- `attached_files` — how often they attach code selections
+- `plan_refs` — whether plan files are being referenced in prompts
+- `mdc_refs` — whether `.mdc` cursor rules files are mentioned anywhere
+- `verification` — presence of success criteria language
+- `constraint_guards` — presence of "don't change X" scope boundaries
+- `debug_structure` — presence of structured debugging language
+- `sessions_with_subagents` — how many sessions triggered agent decomposition (positive signal)
+
+Use the aggregate stats to form a hypothesis about each scoring category *before* reading sessions. Then use the sampled sessions to validate or revise that hypothesis with qualitative evidence.
+
+**Key things to look for when reading the sampled sessions:**
 
 - **Structural tags used:** `<user_query>`, `<attached_files>`, `<cursor_commands>`, `<image_files>`
-- **Context injection methods:** `@` file references, embedded documentation, plan file references
 - **Session opening style:** Does the first message establish clear context, or dive straight to a request?
-- **Follow-up patterns:** How does the developer respond to AI questions or incomplete outputs?
+- **Follow-up patterns:** How does the developer respond when AI output is incomplete or wrong?
 - **Debugging behavior:** What information do they share when something isn't working?
-- **Session length and scope:** How many turns per session? Are sessions focused or sprawling?
+- **Tone and precision:** Directive vs passive; specific vs vague; typos in technical terms
 
 ---
 
@@ -390,6 +400,75 @@ All outputs are coaching tools, not performance reviews. Keep the tone:
 
 **Total: X / 45**
 
+### Score Level Definitions
+
+Use these definitions to anchor scores consistently. Every score should be justifiable with evidence from the session data.
+
+**Context Engineering**
+- **1** — No file references. All prompts describe what they want in prose. AI infers project structure from scratch every session.
+- **2** — Occasional file references, inconsistently applied. Some sessions are grounded; many aren't.
+- **3** — File references in most sessions but not every message. Documentation referenced on complex tasks; lighter requests proceed without context anchors.
+- **4** — File references in nearly every message. Architecture docs and plan files used as session openers. Sessions rarely start cold.
+- **5** — Systematic context injection via preloaded commands. AI never needs clarifying questions about the codebase.
+
+**Instruction Quality**
+- **1** — Passive and vague ("can you look at this?", "any ideas?"). Multiple concerns bundled without priority. Typos in technical identifiers.
+- **2** — Mix of passive and directive. Some clear task statements; vague follow-ups and ambiguous pronouns appear regularly.
+- **3** — Mostly directive with occasional passive requests. Generally specific but sometimes bundles multiple concerns. Typos appear in prose, rarely in identifiers.
+- **4** — Consistently action-oriented. Single clear outcome per prompt. File paths and method names used precisely.
+- **5** — Every prompt is tightly scoped, precisely worded, and contains a single clear outcome. Identifiers always exact. No ambiguity.
+
+**Example-Based Guidance**
+- **1** — Always describes desired output in prose. AI generates from scratch using its defaults. No reference files or mocks.
+- **2** — Occasionally attaches code or references an existing file, but most requests are prose descriptions.
+- **3** — Sometimes uses code attachments or reference files, particularly on complex tasks. Relies on prose for simpler requests.
+- **4** — Regularly shows the AI what's wanted via attached code, reference files, or "build it like X" patterns. AI matches conventions immediately.
+- **5** — Every non-trivial request includes a reference implementation or expected output. Few-shot prompting is the default approach.
+
+**Scope Definition**
+- **1** — No scope boundaries stated. AI modifies whatever it thinks is relevant. Frequent unwanted changes to adjacent files.
+- **2** — Scope occasionally mentioned but not systematically. Some constraint guards in some sessions; most have none.
+- **3** — Scope often implicit (defined by which files are referenced) but rarely stated explicitly. Constraint guards appear on some complex tasks.
+- **4** — Complex tasks include explicit in/out-of-scope statements. Constraint guards appear on most multi-file tasks.
+- **5** — Every complex prompt has an explicit scope boundary. Out-of-scope items are always listed. AI never makes unwanted changes.
+
+**Debugging Discipline**
+- **1** — Bug reports are vague ("it's broken", "this doesn't work"). No trigger, expected, actual, or logs. AI needs many follow-up questions.
+- **2** — Some context provided (error message or code snippet) but triggering action and expected behavior are missing or implicit.
+- **3** — Provides what went wrong and usually the error output, but trigger and expected behavior are often implicit. Structured format used occasionally.
+- **4** — Most bug reports include trigger, expected, actual, and a log reference. AI can diagnose in 1–2 turns.
+- **5** — Every debugging session opens with the full format: trigger → expected → actual → logs. AI diagnoses in one turn. Fresh-start discipline is applied when sessions run long.
+
+**Session Management**
+- **1** — Sessions continue until AI output degrades. No strategy for starting fresh or carrying context across sessions.
+- **2** — Some awareness of session scope but no systematic strategy. Long sessions run without recap or reset. New sessions start cold.
+- **3** — Sessions are generally focused (3–8 turns on average). Occasional long sessions without reset. Some cross-session continuity via file references but no explicit recaps.
+- **4** — Proactively splits work into focused sessions. Inserts context recap when sessions run long. New sessions open with a summary of prior work.
+- **5** — Every session is deliberately scoped. Cross-session handoffs are explicit. Context window is actively monitored and reset before drift occurs.
+
+**Reusability Investment**
+- **1** — No reusable commands, rules, or templates. Same context re-explained in every session.
+- **2** — One or two context commands exist but are rarely used. Most sessions start from scratch.
+- **3** — Has created a small number of context commands and uses them in some sessions. Rules or templates may exist but aren't systematically applied.
+- **4** — Active library of context commands covering the main project areas. Commands are used at session open. Some Cursor rules (`.mdc`) exist.
+- **5** — Comprehensive command library. Every session type has a matching command. Cursor rules enforce patterns automatically. Setup time is near zero.
+
+*Note: Auto-scoped `.mdc` rules are invisible in session files. If signals suggest rules are in use (see the Understanding section above), score accordingly and note the limitation.*
+
+**Verification Habits**
+- **1** — No success criteria ever stated. Verification is entirely reactive — run the app, see what breaks, loop back.
+- **2** — Success criteria appear very rarely. Occasionally mentions how something will be tested, but after the fact.
+- **3** — Occasionally states how a feature will be tested, or mentions a specific expected outcome. Not a consistent habit.
+- **4** — Most complex prompts include "I'll know this is done when..." or a specific verification step. AI is sometimes asked to confirm output meets criteria.
+- **5** — Every implementation prompt has explicit success criteria upfront. AI is always asked to self-check against stated criteria before finishing.
+
+**Plan-Before-Build**
+- **1** — Always jumps straight to implementation. No planning step for any complexity level.
+- **2** — Occasionally asks for a plan on very complex features, but most implementation work starts without scoping. Plan files exist but are rarely referenced.
+- **3** — Sometimes requests a plan first, particularly on larger features. Plan files are created and referenced in some sessions but not consistently at session open.
+- **4** — Complex features consistently start with a plan review. Plan files are used as session openers. Execution sessions reference the plan as a source of truth.
+- **5** — No multi-file change begins without an approved plan. Planning and execution are always separate sessions. Plans are living documents updated as work progresses.
+
 ### Maturity Levels
 
 | Level | Name           | Description                                                                                                                                                             |
@@ -426,11 +505,14 @@ Most developers type quickly in AI sessions and have higher-than-normal typo rat
 
 ## Notes on Session Selection
 
-Not all sessions are equally useful for analysis. When selecting sessions to review:
+The `analyse_sessions.py` script produces a recommended sample of up to 6 sessions per size tier (large / medium / small). Use that as the starting point. Manual guidance:
 
-- **Include:** Architecture sessions, complex feature implementation sessions, debugging sessions with multiple turns
-- **De-prioritize:** Very short sessions (1–2 turns), sessions that are clearly one-off lookups, sessions where the developer is exploring the AI tool itself
-- **Watch for:** Sessions where the developer mentions switching tools mid-way (ChatGPT, another model) — these reveal gaps in their current workflow
+- **Large sessions (9+ turns):** Highest priority — complex work reveals the most about context habits, debugging style, and session management. Always read these.
+- **Medium sessions (4–8 turns):** Represent the developer's average working style. Read at least 4–5 to establish baseline patterns.
+- **Small sessions (1–3 turns):** Can be efficient (developer got what they needed quickly) or abandoned (developer gave up). Read a sample of 3–4 to calibrate which it is. One-off lookup sessions add little signal and can be skipped.
+- **Watch for:** Sessions where the developer mentions switching tools mid-way (ChatGPT, another model) — these reveal gaps in their current workflow.
+
+If the initial sample doesn't give a clear picture of a specific habit (e.g., no debugging sessions in the sample), add 3 more sessions from the relevant tier until the pattern becomes clear.
 
 ---
 
@@ -453,13 +535,21 @@ Master templates — never edit directly, always copy to `reports/[Developer-Nam
 | `templates/scorecard-template.md`       | Portable markdown scorecard template |
 | `PROCESS.md`                            | This process guide                   |
 
+Helper scripts (run from project root, outputs are gitignored):
+
+| File                          | Description                                                    |
+| ----------------------------- | -------------------------------------------------------------- |
+| `scripts/extract_sessions.py` | Extracts all user messages from ingestion → `session_data.json`  |
+| `scripts/analyse_sessions.py` | Computes signal stats + recommends sample → `analysis_stats.json` |
+
 ---
 
 ## Improvement Log
 
-| Date       | Change                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| March 2026 | Initial process established. Python extraction script developed. Rubric v1 created. Folder structure defined: `ingestion/cursor-chats/`, `ingestion/other-chats/`, `reports/[Name]/[YYYY-MM]/`. Scorecard HTML and MD generation steps added. Step 0 added: confirm developer name before starting. PROCESS.md introduced as tool-agnostic process guide; CLAUDE.md and STARTER_PROMPT.md become thin bootstraps pointing here. |
+| Date          | Change                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| March 2026 v1 | Initial process established. Python extraction script developed. Rubric v1 created. Folder structure defined: `ingestion/cursor-chats/`, `ingestion/other-chats/`, `reports/[Name]/[YYYY-MM]/`. Scorecard HTML and MD generation steps added. Step 0 added: confirm developer name before starting. PROCESS.md introduced as tool-agnostic process guide; CLAUDE.md and STARTER_PROMPT.md become thin bootstraps pointing here. |
+| March 2026 v2 | Added `scripts/` folder with `extract_sessions.py` (replaces inline extraction code block) and `analyse_sessions.py` (new pre-analysis stats script). Added tiered sampling strategy (6 large / 6 medium / 6 small sessions). Added score 3 definitions for all 9 categories. Updated subagent guidance: subagents are auto-spawned by Cursor agent, their presence is a positive signal, their content is not reviewed. Updated cursor rules section: explains what session-file signals indicate rules usage rather than directing reviewer to request the rules files. Clarified ingestion folder as single-person drop zone; project folder name = Cursor project slug. Fixed `CONTEXT.md` reference bug in analysis-report-template.md footer. |
 
 ---
 
