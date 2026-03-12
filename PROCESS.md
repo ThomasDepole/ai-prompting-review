@@ -175,7 +175,7 @@ Additional user message types:
 
 ## Running the Analysis
 
-### Step 0 — Confirm the Developer's Name and Check for Existing Reports
+### Step 0 — Confirm the Developer's Name and Check for History
 
 Before doing anything else, confirm the full name of the developer being reviewed. This name is used as the folder name under `reports/` and as the label throughout all three output files.
 
@@ -183,12 +183,37 @@ If the name was not supplied with the initial request, ask: **"What is the full 
 
 Use the name exactly as provided (e.g. `Jane Smith`, not `jane-smith` or `JaneSmith`).
 
-**Check for an existing report before creating anything.** Look for a folder at `reports/[Developer-Name]/[YYYY-MM]/` where `[YYYY-MM]` is the current month. If that folder already exists and contains output files, tell the user:
+---
 
-> *"I found an existing report for [Name] from [Month Year]. Would you like to overwrite it with a fresh analysis, or create a new version alongside it?"*
+**Check for a history file.** Look for `reports/[Developer-Name]/history.json`. If it exists and has entries, read it and show the user a brief summary:
+
+> *"I found [N] previous report(s) for [Name]:*
+> *— [Month Year]: [total]/45 · Level [N] [Level Name] · [N] sessions · [N] user turns*
+> *(one line per report)*
+>
+> *Would you like to:*
+> *A) Start fresh — analyse only the sessions in the ingestion folder, no trend comparison*
+> *B) Build on history — use prior report data to show trends, flag persistent patterns, and contextualise any score changes"*
+
+If the user chooses **B (build on history)**:
+
+- Read the most recent history entry before scoring to calibrate expectations
+- After scoring, compute delta indicators for each category (↑ if current > previous, ↓ if lower, → if unchanged)
+- Include the "Progress Since Last Review" section in the analysis report (see template)
+- In the scorecard, populate the trend indicators and Trend section (see scorecard instructions)
+- Flag categories where a score change may reflect sample size rather than genuine shift — use the `sample_note` from the most recent history entry as a guide
+- Call out confirmed persistent patterns: a weakness that scores low across 2+ reports is a real gap, not a sampling artifact
+
+If the user chooses **A (fresh start)**, omit the "Progress Since Last Review" section and Trend section from both outputs.
+
+---
+
+**Check for an existing report for this month.** Look for a folder at `reports/[Developer-Name]/[YYYY-MM]/` where `[YYYY-MM]` is the current month. If that folder already exists and contains output files, tell the user:
+
+> *"I also found an existing report for [Name] from [Month Year]. Would you like to overwrite it, or save this as a new version alongside it?"*
 
 - **Overwrite:** Proceed normally — the new outputs will replace the existing files.
-- **New version:** Create the output files with a version suffix, e.g. `[Name]-Prompting-Analysis-v2.md`, `[Name]-Scorecard-v2.html`, `scorecard-template-v2.md`. Increment the version number if v2 already exists.
+- **New version:** Create output files with a version suffix, e.g. `[Name]-Prompting-Analysis-v2.md`, `[Name]-Scorecard-v2.html`, `scorecard-template-v2.md`. Increment the version number if v2 already exists.
 
 If no existing report is found, create the folder at `reports/[Developer-Name]/[YYYY-MM]/` and proceed.
 
@@ -346,10 +371,12 @@ The HTML scorecard is an interactive single-page report. Use `templates/scorecar
    - Set the score (X/5) for each of the 9 categories
    - Set the rating dots: filled `●` for earned points, empty `○` for remaining (5 dots per row)
    - Color coding: blue (`dot-blue`) for 4–5, orange (`dot-orange`) for 3, red (`dot-red`) for 1–2
+   - If building on history (Step 0 choice B): add the delta indicator (`↑`, `↓`, or `→`) next to each score using the `.delta-up`, `.delta-down`, `.delta-flat` CSS classes
 6. Update the Overall score and progress bar percentage (`(total/45)*100`)
-7. Update Quick Take: 3 strengths and 3 watch outs (one sentence each)
-8. Update Top 3 Recommendations (numbered, one to two sentences each)
-9. The Reference Guide section at the bottom is **static** — do not change it
+7. **Trend section** (only when building on history): populate the Trend vs Last Report section — list categories that moved up or down, overall delta, and any sample-size caveats. Remove this section entirely if starting fresh.
+8. Update Quick Take: 3 strengths and 3 watch outs (one sentence each)
+9. Update Top 3 Recommendations (numbered, one to two sentences each)
+10. The Reference Guide section at the bottom is **static** — do not change it
 
 **Category IDs for the click-to-expand links** (used in `onclick="openDef('def-X')"` and `id="def-X"`):
 
@@ -390,6 +417,50 @@ All outputs are coaching tools, not performance reviews. Keep the tone:
 - Constructive on weaknesses (explain the failure mode, not just the gap)
 - Respectful of the developer's existing habits (don't dismiss what's working)
 - Practical (every recommendation should be actionable next session)
+
+---
+
+### Step 10 — Update the History File
+
+After all three output files are saved, update `reports/[Developer-Name]/history.json`. If the file doesn't exist, create it. Append a new entry to the `reports` array:
+
+```json
+{
+  "developer": "[Developer Full Name]",
+  "reports": [
+    {
+      "date": "YYYY-MM-DD",
+      "month": "YYYY-MM",
+      "session_count": 0,
+      "user_turns": 0,
+      "scores": {
+        "context_engineering": 0,
+        "instruction_quality": 0,
+        "example_based": 0,
+        "scope_definition": 0,
+        "debugging": 0,
+        "session_management": 0,
+        "reusability": 0,
+        "verification": 0,
+        "plan_before_build": 0
+      },
+      "total": 0,
+      "maturity_level": 0,
+      "maturity_name": "[Level Name]",
+      "strengths": ["Category Name", "Category Name"],
+      "weaknesses": ["Category Name", "Category Name"],
+      "sample_note": "Brief note on sample size, projects covered, or any thin-sample caveats that may have affected scores."
+    }
+  ]
+}
+```
+
+**Notes on the history file:**
+
+- If the file already exists, preserve existing entries and append the new one — never overwrite the array
+- `history.json` lives at `reports/[Developer-Name]/history.json`, one level above the monthly subfolders
+- It is gitignored along with all other content under `reports/` — it is a local record only. If the reports folder is cleared, the history is lost; users who want long-term tracking should back it up separately
+- The `sample_note` field is important: future runs use it to distinguish genuine score changes from sample-size variation
 
 ---
 
@@ -564,6 +635,7 @@ Helper scripts (run from project root, outputs are gitignored):
 | March 2026 v1 | Initial process established. Python extraction script developed. Rubric v1 created. Folder structure defined: `ingestion/cursor-chats/`, `ingestion/other-chats/`, `reports/[Name]/[YYYY-MM]/`. Scorecard HTML and MD generation steps added. Step 0 added: confirm developer name before starting. PROCESS.md introduced as tool-agnostic process guide; CLAUDE.md and STARTER_PROMPT.md become thin bootstraps pointing here. |
 | March 2026 v2 | Added `scripts/` folder with `extract_sessions.py` (replaces inline extraction code block) and `analyse_sessions.py` (new pre-analysis stats script). Added tiered sampling strategy (6 large / 6 medium / 6 small sessions). Added score 3 definitions for all 9 categories. Updated subagent guidance: subagents are auto-spawned by Cursor agent, their presence is a positive signal, their content is not reviewed. Updated cursor rules section: explains what session-file signals indicate rules usage rather than directing reviewer to request the rules files. Clarified ingestion folder as single-person drop zone; project folder name = Cursor project slug. Fixed `CONTEXT.md` reference bug in analysis-report-template.md footer. |
 | March 2026 v3 | Improved `.cursor` folder discovery UX in CLAUDE.md: replaced "ask for username" with a three-option prompt (A: user folder path, B: full .cursor path, C: manual drop into ingestion). Added step-by-step instructions for Windows (`%USERPROFILE%`) and macOS (`Cmd+Shift+H`, hidden files tip). Added Step 0 guard in PROCESS.md: checks for an existing report for the current developer and month before starting — prompts user to overwrite or create a versioned copy (v2, v3, etc.). |
+| March 2026 v4 | Added history tracking system. New `reports/[Developer-Name]/history.json` file stores a lightweight summary of every completed report (scores, session count, maturity level, strengths, weaknesses, sample note). Step 0 expanded: checks for history.json and asks user whether to start fresh or build on prior reports. Step 10 added: write/append history.json after every completed analysis. Analysis report template gains optional "Progress Since Last Review" section with category delta table and trend narrative. HTML and markdown scorecard templates gain optional Trend vs Last Report section with ↑/↓/→ indicators per category and overall delta. Sample-size caveat logic added: persistent low scores flagged as confirmed patterns; single-report drops flagged as potential sample artifacts. |
 
 ---
 

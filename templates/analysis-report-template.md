@@ -13,6 +13,28 @@
 
 ---
 
+## Progress Since Last Review
+*Only include this section when building on history (Step 0 choice B). Remove entirely if this is the first report or the user chose to start fresh.*
+
+**Previous report:** [Month Year] · [N]/45 · Level [N] [Level Name] · [N] sessions
+
+| Category | Previous | Current | Change |
+|---|---|---|---|
+| Context Engineering | X/5 | X/5 | ↑ / ↓ / → |
+| Instruction Quality | X/5 | X/5 | ↑ / ↓ / → |
+| Example-Based Guidance | X/5 | X/5 | ↑ / ↓ / → |
+| Scope Definition | X/5 | X/5 | ↑ / ↓ / → |
+| Debugging Discipline | X/5 | X/5 | ↑ / ↓ / → |
+| Session Management | X/5 | X/5 | ↑ / ↓ / → |
+| Reusability Investment | X/5 | X/5 | ↑ / ↓ / → |
+| Verification Habits | X/5 | X/5 | ↑ / ↓ / → |
+| Plan-Before-Build | X/5 | X/5 | ↑ / ↓ / → |
+| **Overall** | **X/45** | **X/45** | ↑ / ↓ / → |
+
+**Trend narrative:** [2–3 sentences. What genuinely improved, what stayed flat, what regressed. If any change may reflect sample size rather than a real shift, flag it explicitly — e.g. "Debugging dropped from 3 to 2 this month but was based on only 4 debugging sessions; this may not reflect a true regression." If a weakness has appeared in 2+ consecutive reports, name it as a confirmed pattern.]
+
+---
+
 ## Session Inventory
 
 *Key and notable sessions referenced in this analysis. Short sessions or one-off lookups are excluded.*

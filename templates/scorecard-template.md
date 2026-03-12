@@ -15,19 +15,23 @@
 
 ## Category Scores
 
-| Category | Score | Rating | Definition |
-|---|---|---|---|
-| Context Engineering | X/5 | ○○○○○ | Use of @ refs, docs, examples, reference projects, and role-setting to give AI accurate context |
-| Instruction Quality | X/5 | ○○○○○ | Clarity, action verbs ("make X" vs "can you suggest"), specificity, and avoidance of ambiguity |
-| Example-Based Guidance | X/5 | ○○○○○ | Shows AI what's wanted via mocks, reference implementations, or sample output (few-shot technique) |
-| Scope Definition | X/5 | ○○○○○ | In/out-of-scope boundaries, constraint guards ("don't change X"), and edge case handling |
-| Debugging Discipline | X/5 | ○○○○○ | Structured bug reports: triggering action → expected → actual → logs |
-| Session Management | X/5 | ○○○○○ | Context window awareness, fresh-start discipline, cross-session continuity and handoffs |
-| Reusability Investment | X/5 | ○○○○○ | Cursor rules, context commands, and prompt templates built to reduce repetitive setup work |
-| Verification Habits | X/5 | ○○○○○ | Upfront success criteria — "I'll verify by seeing X" — and explicit verification requests |
-| Plan-Before-Build | X/5 | ○○○○○ | Scoping and proposing before implementation; plan files for complex multi-step work |
+*When building on history, fill in the Previous and Δ columns. Remove both columns if this is the first report or the user chose to start fresh.*
 
-**Overall: XX / 45**
+| Category | Previous | Current | Δ | Rating | Definition |
+|---|---|---|---|---|---|
+| Context Engineering | X/5 | X/5 | ↑/↓/→ | ○○○○○ | Use of @ refs, docs, examples, reference projects, and role-setting to give AI accurate context |
+| Instruction Quality | X/5 | X/5 | ↑/↓/→ | ○○○○○ | Clarity, action verbs ("make X" vs "can you suggest"), specificity, and avoidance of ambiguity |
+| Example-Based Guidance | X/5 | X/5 | ↑/↓/→ | ○○○○○ | Shows AI what's wanted via mocks, reference implementations, or sample output (few-shot technique) |
+| Scope Definition | X/5 | X/5 | ↑/↓/→ | ○○○○○ | In/out-of-scope boundaries, constraint guards ("don't change X"), and edge case handling |
+| Debugging Discipline | X/5 | X/5 | ↑/↓/→ | ○○○○○ | Structured bug reports: triggering action → expected → actual → logs |
+| Session Management | X/5 | X/5 | ↑/↓/→ | ○○○○○ | Context window awareness, fresh-start discipline, cross-session continuity and handoffs |
+| Reusability Investment | X/5 | X/5 | ↑/↓/→ | ○○○○○ | Cursor rules, context commands, and prompt templates built to reduce repetitive setup work |
+| Verification Habits | X/5 | X/5 | ↑/↓/→ | ○○○○○ | Upfront success criteria — "I'll verify by seeing X" — and explicit verification requests |
+| Plan-Before-Build | X/5 | X/5 | ↑/↓/→ | ○○○○○ | Scoping and proposing before implementation; plan files for complex multi-step work |
+
+**Overall: XX / 45** *(Previous: XX / 45 · Δ ↑/↓/→ N)*
+
+*Sample note (if applicable): [Flag any categories where a score change may reflect thin sample rather than genuine shift. Remove if no caveats apply.]*
 
 ---
 

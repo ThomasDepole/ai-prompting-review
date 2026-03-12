@@ -141,6 +141,44 @@
     .rec-text { font-size: 12.5px; line-height: 1.5; color: #333; }
     .rec-text strong { color: #1a1a2e; }
 
+    /* ── Trend delta indicators ── */
+    .delta-up   { color: #2a9d8f; font-size: 10px; font-weight: 800; margin-left: 3px; }
+    .delta-down { color: #e63946; font-size: 10px; font-weight: 800; margin-left: 3px; }
+    .delta-flat { color: #bbb;    font-size: 10px; font-weight: 700; margin-left: 3px; }
+
+    /* ── Trend section ── */
+    .trend-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 7px 16px;
+      margin-bottom: 14px;
+    }
+    .trend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: #444;
+    }
+    .trend-arrow {
+      font-size: 13px;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+    .trend-arrow.up   { color: #2a9d8f; }
+    .trend-arrow.down { color: #e63946; }
+    .trend-arrow.flat { color: #bbb; }
+    .trend-note {
+      font-size: 11.5px;
+      color: #777;
+      line-height: 1.5;
+      background: #fffbea;
+      border-left: 3px solid #f4a261;
+      padding: 8px 12px;
+      border-radius: 0 6px 6px 0;
+      margin-top: 10px;
+    }
+
     /* ── Footer ── */
     .footer {
       background: #f6f8ff;
@@ -361,10 +399,11 @@
     <div class="score-grid">
 
       <!-- Context Engineering -->
+      <!-- delta: add <span class="delta-up">↑</span> / <span class="delta-down">↓</span> / <span class="delta-flat">→</span> after score-num when history is available. Remove if first report. -->
       <div class="score-item">
         <div class="score-row">
           <span class="score-label clickable" onclick="openDef('def-context')">Context Engineering</span>
-          <span class="score-num">4/5</span>
+          <span class="score-num">4/5 <span class="delta-up">↑</span></span>
         </div>
         <div class="dots">
           <div class="dot hi"></div><div class="dot hi"></div>
@@ -377,7 +416,7 @@
       <div class="score-item">
         <div class="score-row">
           <span class="score-label clickable" onclick="openDef('def-instruction')">Instruction Quality</span>
-          <span class="score-num">3/5</span>
+          <span class="score-num">3/5 <span class="delta-flat">→</span></span>
         </div>
         <div class="dots">
           <div class="dot mid"></div><div class="dot mid"></div>
@@ -390,7 +429,7 @@
       <div class="score-item">
         <div class="score-row">
           <span class="score-label clickable" onclick="openDef('def-examples')">Example-Based Guidance</span>
-          <span class="score-num">3/5</span>
+          <span class="score-num">3/5 <span class="delta-flat">→</span></span>
         </div>
         <div class="dots">
           <div class="dot mid"></div><div class="dot mid"></div>
@@ -403,7 +442,7 @@
       <div class="score-item">
         <div class="score-row">
           <span class="score-label clickable" onclick="openDef('def-scope')">Scope Definition</span>
-          <span class="score-num">4/5</span>
+          <span class="score-num">4/5 <span class="delta-up">↑</span></span>
         </div>
         <div class="dots">
           <div class="dot hi"></div><div class="dot hi"></div>
@@ -416,7 +455,7 @@
       <div class="score-item">
         <div class="score-row">
           <span class="score-label clickable" onclick="openDef('def-debugging')">Debugging Discipline</span>
-          <span class="score-num">2/5</span>
+          <span class="score-num">2/5 <span class="delta-down">↓</span></span>
         </div>
         <div class="dots">
           <div class="dot lo"></div><div class="dot lo"></div>
@@ -429,7 +468,7 @@
       <div class="score-item">
         <div class="score-row">
           <span class="score-label clickable" onclick="openDef('def-session')">Session Management</span>
-          <span class="score-num">3/5</span>
+          <span class="score-num">3/5 <span class="delta-flat">→</span></span>
         </div>
         <div class="dots">
           <div class="dot mid"></div><div class="dot mid"></div>
@@ -442,7 +481,7 @@
       <div class="score-item">
         <div class="score-row">
           <span class="score-label clickable" onclick="openDef('def-reuse')">Reusability Investment</span>
-          <span class="score-num">4/5</span>
+          <span class="score-num">4/5 <span class="delta-up">↑</span></span>
         </div>
         <div class="dots">
           <div class="dot hi"></div><div class="dot hi"></div>
@@ -455,7 +494,7 @@
       <div class="score-item">
         <div class="score-row">
           <span class="score-label clickable" onclick="openDef('def-verify')">Verification Habits</span>
-          <span class="score-num">1/5</span>
+          <span class="score-num">1/5 <span class="delta-flat">→</span></span>
         </div>
         <div class="dots">
           <div class="dot lo"></div><div class="dot"></div>
@@ -468,7 +507,7 @@
       <div class="score-item">
         <div class="score-row">
           <span class="score-label clickable" onclick="openDef('def-plan')">Plan-Before-Build</span>
-          <span class="score-num">5/5</span>
+          <span class="score-num">5/5 <span class="delta-up">↑</span></span>
         </div>
         <div class="dots">
           <div class="dot hi"></div><div class="dot hi"></div>
@@ -484,6 +523,35 @@
       <span class="overall-label">Overall</span>
       <div class="bar-track"><div class="bar-fill" style="width:62%;"></div></div>
       <span class="overall-pts">29 / 45</span>
+    </div>
+  </div>
+
+  <!-- ── TREND VS LAST REPORT ── -->
+  <!-- ONLY include this section when building on history (Step 0 choice B). Remove entirely if this is the first report or the user chose to start fresh. -->
+  <div class="section">
+    <div class="section-title">Trend vs Last Report &nbsp;· &nbsp;<span style="font-weight:400;text-transform:none;letter-spacing:0;color:#bbb;">[Month Year]</span></div>
+    <div class="trend-grid">
+      <!-- One trend-item per category. Use class "up", "down", or "flat" on trend-arrow. -->
+      <div class="trend-item"><span class="trend-arrow up">↑</span> Context Engineering +1</div>
+      <div class="trend-item"><span class="trend-arrow flat">→</span> Instruction Quality</div>
+      <div class="trend-item"><span class="trend-arrow flat">→</span> Example-Based Guidance</div>
+      <div class="trend-item"><span class="trend-arrow up">↑</span> Scope Definition +1</div>
+      <div class="trend-item"><span class="trend-arrow down">↓</span> Debugging Discipline −1</div>
+      <div class="trend-item"><span class="trend-arrow flat">→</span> Session Management</div>
+      <div class="trend-item"><span class="trend-arrow up">↑</span> Reusability Investment +1</div>
+      <div class="trend-item"><span class="trend-arrow flat">→</span> Verification Habits</div>
+      <div class="trend-item"><span class="trend-arrow up">↑</span> Plan-Before-Build +1</div>
+    </div>
+    <div class="overall-wrap" style="margin-top:0;">
+      <span class="overall-label">Overall</span>
+      <div style="font-size:12px;color:#555;flex:1;">
+        Previous: <strong>[X]/45</strong> &nbsp;→&nbsp; Current: <strong>[X]/45</strong>
+      </div>
+      <span class="delta-up" style="font-size:13px;">↑ +[N]</span>
+    </div>
+    <!-- Optional: add a trend-note if any score change may reflect sample size rather than a genuine shift -->
+    <div class="trend-note">
+      ⚠ <strong>Sample note:</strong> [e.g. "Debugging dropped from 3 to 2 but only 4 debugging sessions were sampled this month — this may not reflect a true regression. Flag for next review."] Remove this block if no caveats apply.
     </div>
   </div>
 
