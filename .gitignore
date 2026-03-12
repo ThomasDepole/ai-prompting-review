@@ -1,0 +1,29 @@
+# -------------------------------------------------------
+# Developer report outputs — personal data, not committed
+# -------------------------------------------------------
+reports/*/
+
+# Keep the placeholder README so the folder exists in git
+!reports/README.md
+
+
+# -------------------------------------------------------
+# Ingestion session data — personal AI sessions, not committed
+# -------------------------------------------------------
+ingestion/cursor-chats/*/
+ingestion/other-chats/*/
+
+# Keep the READMEs so the folder structure is preserved in git
+!ingestion/README.md
+!ingestion/cursor-chats/README.md
+!ingestion/other-chats/README.md
+
+
+# -------------------------------------------------------
+# Common extras
+# -------------------------------------------------------
+.DS_Store
+Thumbs.db
+*.pyc
+__pycache__/
+session_data.json

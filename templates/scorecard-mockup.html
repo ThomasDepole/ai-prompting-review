@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI Prompting Score Card</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      padding: 32px;
+      color: #1a1a2e;
+    }
+
+    .card {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 20px rgba(0,0,0,0.10);
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: #1a1a2e;
+      color: white;
+      padding: 26px 32px 22px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+    }
+    .header-left h1 { font-size: 21px; font-weight: 700; margin-bottom: 6px; }
+    .header-meta { font-size: 12px; opacity: 0.5; margin-top: 2px; }
+    .project-tag {
+      display: inline-block;
+      background: rgba(255,255,255,0.12);
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 12px;
+      margin: 2px 3px 2px 0;
+      color: rgba(255,255,255,0.75);
+    }
+    .projects-row { margin-top: 8px; }
+
+    .level-badge {
+      background: #3a86ff;
+      border-radius: 10px;
+      padding: 12px 18px;
+      text-align: center;
+      min-width: 118px;
+      flex-shrink: 0;
+    }
+    .level-badge .level-num { font-size: 30px; font-weight: 800; line-height: 1; }
+    .level-badge .level-sup { font-size: 10px; opacity: 0.75; margin-top: 2px; letter-spacing: 0.06em; text-transform: uppercase; }
+    .level-badge .level-name { font-size: 12px; font-weight: 600; margin-top: 5px; }
+
+    /* ── Section wrapper ── */
+    .section { padding: 22px 32px; }
+    .section + .section { border-top: 1px solid #f0f0f0; }
+    .section-title {
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.11em;
+      text-transform: uppercase;
+      color: #999;
+      margin-bottom: 16px;
+    }
+
+    /* ── Score grid ── */
+    .score-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 14px 20px;
+    }
+    .score-item { display: flex; flex-direction: column; gap: 5px; }
+    .score-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    .score-label { font-size: 12.5px; font-weight: 500; color: #333; }
+    .score-num { font-size: 11px; font-weight: 700; color: #777; }
+    .dots { display: flex; gap: 4px; }
+    .dot {
+      width: 13px; height: 13px;
+      border-radius: 50%;
+      background: #e8e8e8;
+    }
+    .dot.hi   { background: #3a86ff; }
+    .dot.mid  { background: #f4a261; }
+    .dot.lo   { background: #e63946; }
+
+    /* ── Category tooltip ── */
+    .score-label[title] { cursor: help; border-bottom: 1px dashed #ccc; }
+
+    /* ── Overall bar ── */
+    .overall-wrap {
+      margin-top: 18px;
+      background: #f6f8ff;
+      border-radius: 8px;
+      padding: 13px 18px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .overall-label { font-size: 12px; font-weight: 600; color: #555; flex-shrink: 0; width: 52px; }
+    .bar-track { flex: 1; height: 8px; background: #e0e0e0; border-radius: 99px; overflow: hidden; }
+    .bar-fill  { height: 100%; border-radius: 99px; background: linear-gradient(90deg, #3a86ff, #4cc9f0); }
+    .overall-pts { font-size: 14px; font-weight: 700; color: #3a86ff; flex-shrink: 0; min-width: 48px; text-align: right; }
+
+    /* ── Quick Take ── */
+    .quick-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .quick-col h4 {
+      font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; margin-bottom: 10px;
+    }
+    .quick-col.strengths h4 { color: #2a9d8f; }
+    .quick-col.watchouts h4 { color: #e76f51; }
+
+    .bullet-list { list-style: none; display: flex; flex-direction: column; gap: 9px; }
+    .bullet-list li {
+      font-size: 12.5px; line-height: 1.5;
+      padding-left: 18px; position: relative; color: #333;
+    }
+    .bullet-list li::before { position: absolute; left: 0; top: 0; font-weight: 700; }
+    .strengths .bullet-list li::before { content: '✓'; color: #2a9d8f; }
+    .watchouts .bullet-list li::before { content: '!'; color: #e76f51; }
+
+    /* ── Recommendations ── */
+    .rec-list { display: flex; flex-direction: column; gap: 10px; }
+    .rec-item { display: flex; gap: 11px; align-items: flex-start; }
+    .rec-num {
+      font-size: 10px; font-weight: 800; color: white;
+      background: #3a86ff; border-radius: 50%;
+      width: 19px; height: 19px; display: flex;
+      align-items: center; justify-content: center;
+      flex-shrink: 0; margin-top: 2px;
+    }
+    .rec-text { font-size: 12.5px; line-height: 1.5; color: #333; }
+    .rec-text strong { color: #1a1a2e; }
+
+    /* ── Footer ── */
+    .footer {
+      background: #f6f8ff;
+      padding: 11px 32px;
+      font-size: 11px; color: #aaa;
+      display: flex; justify-content: space-between;
+    }
+    .footer a { color: #3a86ff; text-decoration: none; }
+
+    /* ── Annotation callout (mock only) ── */
+    .mock-note {
+      background: #fffbea;
+      border-left: 3px solid #f4a261;
+      padding: 10px 14px;
+      font-size: 11.5px;
+      color: #7c5230;
+      margin-bottom: 14px;
+      border-radius: 0 6px 6px 0;
+      line-height: 1.5;
+    }
+    .mock-note strong { color: #b45309; }
+
+    /* ── Reference Guide ── */
+    .ref-guide {
+      background: #f4f5f7;
+      border-top: 2px solid #e0e0e0;
+    }
+    .ref-guide-header {
+      padding: 18px 32px 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .ref-guide-header h2 {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #666;
+    }
+    .ref-guide-header span {
+      font-size: 11px;
+      color: #aaa;
+    }
+
+    /* Maturity level table */
+    .level-table {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      padding: 14px 32px 6px;
+    }
+    .level-cell {
+      background: white;
+      border-radius: 8px;
+      padding: 12px 10px;
+      text-align: center;
+      border: 2px solid transparent;
+    }
+    .level-cell.active { border-color: #3a86ff; background: #eef4ff; }
+    .level-cell .lc-num {
+      font-size: 20px; font-weight: 800;
+      color: #bbb; line-height: 1; margin-bottom: 4px;
+    }
+    .level-cell.active .lc-num { color: #3a86ff; }
+    .level-cell .lc-name {
+      font-size: 11px; font-weight: 700;
+      color: #888; margin-bottom: 6px;
+    }
+    .level-cell.active .lc-name { color: #1a1a2e; }
+    .level-cell .lc-desc {
+      font-size: 10.5px; color: #aaa; line-height: 1.4;
+    }
+    .level-cell.active .lc-desc { color: #444; }
+
+    /* Category reference cards */
+    /* Clickable category labels in score grid */
+    .score-label.clickable {
+      cursor: pointer;
+      color: #3a86ff;
+      text-decoration: none;
+      border-bottom: 1px dashed #a0bfff;
+      transition: color 0.1s;
+    }
+    .score-label.clickable:hover { color: #1a60d0; border-bottom-color: #1a60d0; }
+
+    .cat-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 8px 32px 22px;
+    }
+    .cat-card {
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid transparent;
+      transition: border-color 0.2s;
+    }
+    .cat-card.highlight {
+      border-color: #3a86ff;
+      box-shadow: 0 0 0 3px rgba(58,134,255,0.12);
+    }
+    .cat-card summary {
+      padding: 11px 16px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: #333;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      list-style: none;
+      user-select: none;
+    }
+    .cat-card summary::-webkit-details-marker { display: none; }
+    .cat-card summary::before {
+      content: '▸';
+      font-size: 10px;
+      color: #aaa;
+      flex-shrink: 0;
+      transition: transform 0.15s;
+    }
+    .cat-card[open] summary::before { transform: rotate(90deg); }
+    .cat-card summary:hover { background: #f6f8ff; }
+    .cat-card[open] summary { border-bottom: 1px solid #f0f0f0; }
+
+    .cat-body {
+      padding: 14px 16px 14px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto auto;
+      gap: 10px;
+    }
+    .cat-what {
+      grid-column: 1 / -1;
+      font-size: 12px;
+      color: #444;
+      line-height: 1.6;
+    }
+    .cat-scores {
+      display: contents;
+    }
+    .cat-score-block {
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 11.5px;
+      line-height: 1.5;
+    }
+    .cat-score-block.low  { background: #fff0f0; color: #7a2020; }
+    .cat-score-block.high { background: #f0fff8; color: #1a5c3a; }
+    .cat-score-block strong { display: block; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 4px; opacity: 0.65; }
+    .cat-improve {
+      grid-column: 1 / -1;
+      font-size: 12px;
+      color: #333;
+      line-height: 1.6;
+      background: #f6f8ff;
+      border-left: 3px solid #3a86ff;
+      padding: 9px 12px;
+      border-radius: 0 6px 6px 0;
+    }
+    .cat-improve strong { color: #1a1a2e; }
+
+    .ref-subsection-title {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #aaa;
+      padding: 14px 32px 4px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+
+  <!-- ── HEADER ── -->
+  <div class="header">
+    <div class="header-left">
+      <h1>Developer Name</h1>
+      <div class="projects-row">
+        <span class="project-tag">WellSky Portal</span>
+        <span class="project-tag">Project B</span>
+        <span class="project-tag">Project C</span>
+      </div>
+      <div class="header-meta">March 2026 &nbsp;·&nbsp; 18 sessions reviewed &nbsp;·&nbsp; 91 user turns</div>
+    </div>
+    <div class="level-badge">
+      <div class="level-num">3</div>
+      <div class="level-sup">Maturity Level</div>
+      <div class="level-name">Context-Aware</div>
+      <div style="display:flex; gap:4px; justify-content:center; margin-top:8px;">
+        <div style="width:10px;height:4px;border-radius:2px;background:rgba(255,255,255,0.3);"></div>
+        <div style="width:10px;height:4px;border-radius:2px;background:rgba(255,255,255,0.3);"></div>
+        <div style="width:10px;height:4px;border-radius:2px;background:rgba(255,255,255,1);"></div>
+        <div style="width:10px;height:4px;border-radius:2px;background:rgba(255,255,255,0.3);"></div>
+        <div style="width:10px;height:4px;border-radius:2px;background:rgba(255,255,255,0.3);"></div>
+      </div>
+      <div style="font-size:9px;opacity:0.5;margin-top:4px;letter-spacing:0.05em;">1 &nbsp;2 &nbsp;● &nbsp;4 &nbsp;5</div>
+    </div>
+  </div>
+
+  <!-- ── MOCK CALLOUT ── -->
+  <div class="section" style="padding-bottom:0;">
+    <div class="mock-note">
+      <strong>This is a mock-up for design review.</strong> Scores and bullets are placeholders.
+      Categories marked with <u>underline</u> in the grid are new additions from research — hover for a definition.
+      Remove this box in the final version.
+    </div>
+  </div>
+
+  <!-- ── SCORES ── -->
+  <div class="section">
+    <div class="section-title">Category Scores &nbsp;(each rated 1 – 5)</div>
+
+    <div class="score-grid">
+
+      <!-- Context Engineering -->
+      <div class="score-item">
+        <div class="score-row">
+          <span class="score-label clickable" onclick="openDef('def-context')">Context Engineering</span>
+          <span class="score-num">4/5</span>
+        </div>
+        <div class="dots">
+          <div class="dot hi"></div><div class="dot hi"></div>
+          <div class="dot hi"></div><div class="dot hi"></div>
+          <div class="dot"></div>
+        </div>
+      </div>
+
+      <!-- Instruction Quality -->
+      <div class="score-item">
+        <div class="score-row">
+          <span class="score-label clickable" onclick="openDef('def-instruction')">Instruction Quality</span>
+          <span class="score-num">3/5</span>
+        </div>
+        <div class="dots">
+          <div class="dot mid"></div><div class="dot mid"></div>
+          <div class="dot mid"></div><div class="dot"></div>
+          <div class="dot"></div>
+        </div>
+      </div>
+
+      <!-- Example-Based Guidance -->
+      <div class="score-item">
+        <div class="score-row">
+          <span class="score-label clickable" onclick="openDef('def-examples')">Example-Based Guidance</span>
+          <span class="score-num">3/5</span>
+        </div>
+        <div class="dots">
+          <div class="dot mid"></div><div class="dot mid"></div>
+          <div class="dot mid"></div><div class="dot"></div>
+          <div class="dot"></div>
+        </div>
+      </div>
+
+      <!-- Scope Definition -->
+      <div class="score-item">
+        <div class="score-row">
+          <span class="score-label clickable" onclick="openDef('def-scope')">Scope Definition</span>
+          <span class="score-num">4/5</span>
+        </div>
+        <div class="dots">
+          <div class="dot hi"></div><div class="dot hi"></div>
+          <div class="dot hi"></div><div class="dot hi"></div>
+          <div class="dot"></div>
+        </div>
+      </div>
+
+      <!-- Debugging Discipline -->
+      <div class="score-item">
+        <div class="score-row">
+          <span class="score-label clickable" onclick="openDef('def-debugging')">Debugging Discipline</span>
+          <span class="score-num">2/5</span>
+        </div>
+        <div class="dots">
+          <div class="dot lo"></div><div class="dot lo"></div>
+          <div class="dot"></div><div class="dot"></div>
+          <div class="dot"></div>
+        </div>
+      </div>
+
+      <!-- Session Management -->
+      <div class="score-item">
+        <div class="score-row">
+          <span class="score-label clickable" onclick="openDef('def-session')">Session Management</span>
+          <span class="score-num">3/5</span>
+        </div>
+        <div class="dots">
+          <div class="dot mid"></div><div class="dot mid"></div>
+          <div class="dot mid"></div><div class="dot"></div>
+          <div class="dot"></div>
+        </div>
+      </div>
+
+      <!-- Reusability Investment -->
+      <div class="score-item">
+        <div class="score-row">
+          <span class="score-label clickable" onclick="openDef('def-reuse')">Reusability Investment</span>
+          <span class="score-num">4/5</span>
+        </div>
+        <div class="dots">
+          <div class="dot hi"></div><div class="dot hi"></div>
+          <div class="dot hi"></div><div class="dot hi"></div>
+          <div class="dot"></div>
+        </div>
+      </div>
+
+      <!-- Verification Habits -->
+      <div class="score-item">
+        <div class="score-row">
+          <span class="score-label clickable" onclick="openDef('def-verify')">Verification Habits</span>
+          <span class="score-num">1/5</span>
+        </div>
+        <div class="dots">
+          <div class="dot lo"></div><div class="dot"></div>
+          <div class="dot"></div><div class="dot"></div>
+          <div class="dot"></div>
+        </div>
+      </div>
+
+      <!-- Plan-Before-Build -->
+      <div class="score-item">
+        <div class="score-row">
+          <span class="score-label clickable" onclick="openDef('def-plan')">Plan-Before-Build</span>
+          <span class="score-num">5/5</span>
+        </div>
+        <div class="dots">
+          <div class="dot hi"></div><div class="dot hi"></div>
+          <div class="dot hi"></div><div class="dot hi"></div>
+          <div class="dot hi"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Overall -->
+    <div class="overall-wrap">
+      <span class="overall-label">Overall</span>
+      <div class="bar-track"><div class="bar-fill" style="width:62%;"></div></div>
+      <span class="overall-pts">29 / 45</span>
+    </div>
+  </div>
+
+  <!-- ── QUICK TAKE ── -->
+  <div class="section">
+    <div class="section-title">Quick Take</div>
+    <div class="quick-cols">
+      <div class="quick-col strengths">
+        <h4>Strengths</h4>
+        <ul class="bullet-list">
+          <li>Consistent <code>@</code> file references — AI always has the right context before acting</li>
+          <li>Plan-driven execution — complex work is scoped before any code is written</li>
+          <li>Built reusable context commands; understands value of front-loading architecture docs</li>
+        </ul>
+      </div>
+      <div class="quick-col watchouts">
+        <h4>Watch Outs</h4>
+        <ul class="bullet-list">
+          <li>Bug reports skip triggering action — AI can't reproduce what it can't trace</li>
+          <li>No success criteria in implementation prompts — verification is always reactive</li>
+          <li>Long debug sessions (15+ turns) without a fresh-start reset compound context drift</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TOP RECOMMENDATIONS ── -->
+  <div class="section">
+    <div class="section-title">Top Recommendations</div>
+    <div class="rec-list">
+      <div class="rec-item">
+        <div class="rec-num">1</div>
+        <div class="rec-text"><strong>Add a verification line to every implementation prompt.</strong> One sentence — "I'll verify by running the app and seeing X" — changes how the AI structures its output.</div>
+      </div>
+      <div class="rec-item">
+        <div class="rec-num">2</div>
+        <div class="rec-text"><strong>Use a structured bug report format.</strong> Action → expected → actual → logs. One extra sentence reduces debugging back-and-forth by 1–2 turns per session.</div>
+      </div>
+      <div class="rec-item">
+        <div class="rec-num">3</div>
+        <div class="rec-text"><strong>Expand the reusable command library.</strong> Already has <code>context-humdrum-data</code>. Next targets: <code>context-caretend-api</code>, <code>context-blazor-patterns</code>.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── FOOTER ── -->
+  <div class="footer">
+    <span>Full analysis → <a href="#">Developer-Prompting-Analysis.md</a></span>
+    <span>Process guide → <a href="#">CONTEXT.md</a></span>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       REFERENCE GUIDE  —  static, shared across all cards
+       ══════════════════════════════════════════ -->
+  <div class="ref-guide">
+
+    <div class="ref-guide-header">
+      <h2>Reference Guide</h2>
+      <span>How scores and levels are defined</span>
+    </div>
+
+    <!-- MATURITY LEVELS -->
+    <div class="ref-subsection-title">Maturity Levels</div>
+    <div class="level-table">
+
+      <div class="level-cell">
+        <div class="lc-num">1</div>
+        <div class="lc-name">Conversational</div>
+        <div class="lc-desc">Treats AI like a chat interface. No file references, relies on AI to infer all context. High back-and-forth, frequent corrections.</div>
+      </div>
+
+      <div class="level-cell">
+        <div class="lc-num">2</div>
+        <div class="lc-name">Task-Oriented</div>
+        <div class="lc-desc">Gives the AI clear tasks but doesn't pre-load context. Uses some file references but inconsistently. Debugging is trial-and-error.</div>
+      </div>
+
+      <div class="level-cell active">
+        <div class="lc-num">3</div>
+        <div class="lc-name">Context-Aware</div>
+        <div class="lc-desc">Consistently uses file references and docs. Has discovered some reusable patterns. Good architectural collaboration but ad-hoc session management.</div>
+      </div>
+
+      <div class="level-cell">
+        <div class="lc-num">4</div>
+        <div class="lc-name">Systematic</div>
+        <div class="lc-desc">Has a library of context commands. Every session opens with context-setting. Debugging follows a structured format. Plans and executes in separate sessions by default.</div>
+      </div>
+
+      <div class="level-cell">
+        <div class="lc-num">5</div>
+        <div class="lc-name">Expert</div>
+        <div class="lc-desc">Designs prompts as reusable templates. Uses AI for verification as well as generation. Creates and maintains team-wide prompt libraries. Actively coaches others.</div>
+      </div>
+
+    </div>
+
+    <!-- CATEGORY DEFINITIONS -->
+    <div class="ref-subsection-title">Category Definitions</div>
+    <div class="cat-grid">
+
+      <details class="cat-card" id="def-context">
+        <summary>Context Engineering</summary>
+        <div class="cat-body">
+          <div class="cat-what">How well the developer gives the AI accurate, complete context before asking it to act — using file references, documentation, role-setting, and reference projects.</div>
+          <div class="cat-scores">
+            <div class="cat-score-block low"><strong>Low (1–2)</strong>Describes what they want in prose, no file references. AI has to guess at project structure, existing patterns, and conventions.</div>
+            <div class="cat-score-block high"><strong>High (4–5)</strong>Uses <code>@</code> references consistently, injects architecture docs, points to wiki pages. AI rarely needs to ask clarifying questions about the codebase.</div>
+          </div>
+          <div class="cat-improve"><strong>To improve:</strong> Before every session, ask: "Does the AI know where to look?" Add <code>@</code> references to the key files, the relevant docs, and any existing patterns to follow.</div>
+        </div>
+      </details>
+
+      <details class="cat-card" id="def-instruction">
+        <summary>Instruction Quality</summary>
+        <div class="cat-body">
+          <div class="cat-what">Clarity of the prompt itself — specific outcomes requested, action-oriented language, and avoidance of ambiguity. "Make X" outperforms "can you suggest X" in agentic coding contexts.</div>
+          <div class="cat-scores">
+            <div class="cat-score-block low"><strong>Low (1–2)</strong>Passive requests ("can you look at..."), vague goals, typos in class/file names, instructions that bundle multiple concerns without priority.</div>
+            <div class="cat-score-block high"><strong>High (4–5)</strong>Action verbs ("create", "update", "fix"), single clear outcome per prompt, specific file paths and method names, minimal ambiguity.</div>
+          </div>
+          <div class="cat-improve"><strong>To improve:</strong> Re-read each prompt before sending. Replace "can you..." with the direct action. If a prompt has more than one goal, consider splitting it.</div>
+        </div>
+      </details>
+
+      <details class="cat-card" id="def-examples">
+        <summary>Example-Based Guidance</summary>
+        <div class="cat-body">
+          <div class="cat-what">Does the developer show the AI what they want via examples, mock implementations, or reference projects — rather than only describing it in words? (Known as few-shot prompting.)</div>
+          <div class="cat-scores">
+            <div class="cat-score-block low"><strong>Low (1–2)</strong>Always describes desired output in prose. AI generates from scratch using its defaults, which may not match team patterns or expectations.</div>
+            <div class="cat-score-block high"><strong>High (4–5)</strong>Regularly points to a working example, a mock, or a reference file: "Build it like this existing one." AI matches style, structure, and conventions immediately.</div>
+          </div>
+          <div class="cat-improve"><strong>To improve:</strong> When asking for something new, find the closest existing example in the codebase and reference it with <code>@</code>. "Build X like we did Y" is more reliable than describing X from scratch.</div>
+        </div>
+      </details>
+
+      <details class="cat-card" id="def-scope">
+        <summary>Scope Definition</summary>
+        <div class="cat-body">
+          <div class="cat-what">Does the developer define what is in-scope and out-of-scope for the task? Do they add constraint guards to prevent the AI from touching adjacent code?</div>
+          <div class="cat-scores">
+            <div class="cat-score-block low"><strong>Low (1–2)</strong>No boundaries stated. AI makes reasonable-but-unwanted changes to related files, refactors things that weren't asked for, or builds more than was needed.</div>
+            <div class="cat-score-block high"><strong>High (4–5)</strong>Explicit in/out-of-scope lists for complex tasks. Constraint guards like "don't change the public API of X" prevent scope creep.</div>
+          </div>
+          <div class="cat-improve"><strong>To improve:</strong> Add one line to complex prompts: "Don't change [X]." For feature work, list what is explicitly out of scope so the AI doesn't pre-empt future decisions.</div>
+        </div>
+      </details>
+
+      <details class="cat-card" id="def-debugging">
+        <summary>Debugging Discipline</summary>
+        <div class="cat-body">
+          <div class="cat-what">Quality of information shared when something is broken. Effective debugging prompts follow the format: triggering action → expected behavior → actual behavior → relevant logs.</div>
+          <div class="cat-scores">
+            <div class="cat-score-block low"><strong>Low (1–2)</strong>"It's not working" or log paste with no context. AI has to ask multiple follow-up questions before it can diagnose the issue.</div>
+            <div class="cat-score-block high"><strong>High (4–5)</strong>Every bug report includes what was done, what was expected, what actually happened, and the relevant log output. AI diagnoses in one turn.</div>
+          </div>
+          <div class="cat-improve"><strong>To improve:</strong> Use this template: "I navigated to [X] and clicked [Y]. I expected [Z]. Instead: [actual result]. Here's the log: [paste]."</div>
+        </div>
+      </details>
+
+      <details class="cat-card" id="def-session">
+        <summary>Session Management</summary>
+        <div class="cat-body">
+          <div class="cat-what">Awareness of context window limits, ability to recognise when a fresh session outperforms continuing, and quality of cross-session handoffs.</div>
+          <div class="cat-scores">
+            <div class="cat-score-block low"><strong>Low (1–2)</strong>Sessions run until the AI produces degraded output. No strategy for starting fresh. New sessions begin without reorienting the AI to prior work.</div>
+            <div class="cat-score-block high"><strong>High (4–5)</strong>Proactively splits long tasks into focused sessions. Opens new sessions with a clear "here's where we left off" summary. Monitors context usage and resets before drift occurs.</div>
+          </div>
+          <div class="cat-improve"><strong>To improve:</strong> After 3–4 failed turns on the same bug, summarise what's been ruled out and start a fresh session. For multi-session work, open each session with a 2–3 sentence recap.</div>
+        </div>
+      </details>
+
+      <details class="cat-card" id="def-reuse">
+        <summary>Reusability Investment</summary>
+        <div class="cat-body">
+          <div class="cat-what">Has the developer built reusable context commands, Cursor rules (.mdc), and prompt templates that reduce repeated setup work across sessions?</div>
+          <div class="cat-scores">
+            <div class="cat-score-block low"><strong>Low (1–2)</strong>Re-explains the same conventions, architecture, and constraints in every session. No rules or commands exist. Knowledge lives only in the developer's head.</div>
+            <div class="cat-score-block high"><strong>High (4–5)</strong>Architecture docs are wrapped in reusable commands. Cursor rules enforce patterns automatically. A new session can be fully oriented in one command invocation.</div>
+          </div>
+          <div class="cat-improve"><strong>To improve:</strong> Any time you paste the same context into a second session, that content belongs in a command. Start with the highest-frequency pattern and wrap it in a <code>/context-[name]</code> command.</div>
+        </div>
+      </details>
+
+      <details class="cat-card" id="def-verify">
+        <summary>Verification Habits</summary>
+        <div class="cat-body">
+          <div class="cat-what">Does the developer define what success looks like before the AI starts building? Do prompts include a verification line, and does the developer ask the AI to self-check its output?</div>
+          <div class="cat-scores">
+            <div class="cat-score-block low"><strong>Low (1–2)</strong>No success criteria stated. Verification is entirely reactive — run the app, see what breaks, loop back. AI has no signal to self-check against.</div>
+            <div class="cat-score-block high"><strong>High (4–5)</strong>Every implementation prompt ends with "I'll verify by [X]." AI is asked to confirm the build passes, run tests, or check its output against stated criteria before finishing.</div>
+          </div>
+          <div class="cat-improve"><strong>To improve:</strong> Add one sentence to every implementation prompt: "I'll know this works when [specific observable outcome]." This also prompts the AI to add logging or comments that make that verification easier.</div>
+        </div>
+      </details>
+
+      <details class="cat-card" id="def-plan">
+        <summary>Plan-Before-Build</summary>
+        <div class="cat-body">
+          <div class="cat-what">Does the developer scope and review a plan or proposal before the AI writes code? Are complex multi-step features broken into a plan file before execution begins?</div>
+          <div class="cat-scores">
+            <div class="cat-score-block low"><strong>Low (1–2)</strong>Jumps straight to implementation. When the output isn't right, the cost is a full rewrite rather than a quick plan correction.</div>
+            <div class="cat-score-block high"><strong>High (4–5)</strong>Complex features get a plan or proposal reviewed and approved before a single file is changed. Execution sessions reference the plan as a source of truth.</div>
+          </div>
+          <div class="cat-improve"><strong>To improve:</strong> For any task touching more than two files, ask for a plan first: "Review X and propose the changes you'll make. Don't write any code yet." Approve the plan, then execute in a separate message or session.</div>
+        </div>
+      </details>
+
+    </div>
+  </div><!-- /ref-guide -->
+
+</div><!-- /card -->
+
+<script>
+  function openDef(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    // Open it
+    el.open = true;
+
+    // Remove any previous highlight
+    document.querySelectorAll('.cat-card').forEach(c => c.classList.remove('highlight'));
+    el.classList.add('highlight');
+
+    // Scroll smoothly into view with a little breathing room
+    setTimeout(() => {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 50);
+
+    // Remove highlight after a moment
+    setTimeout(() => el.classList.remove('highlight'), 2200);
+  }
+</script>
+</body>
+</html>
