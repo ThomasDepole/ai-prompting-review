@@ -1,8 +1,18 @@
 # AI Prompting Review — Claude Bootstrap
 
+> **This file is intended for Claude (Cowork / Claude Code) only.**
+> If you are unsure which tool you are running in, ask the user to confirm before proceeding.
+> If you are running in Cursor, stop reading this file and follow `.cursor/rules/prompting-review.mdc` instead.
+
 This is an AI prompting pattern analysis workspace.
 
-Read `PROCESS.md` before doing anything else. It contains the full process guide: how to extract session data, score against the rubric, and produce the three output files.
+Read `PROCESS.md` before doing anything else. It covers setup and Steps 0–3. The process is split across three files — load each only when you reach that stage:
+
+| File | Load when |
+|---|---|
+| `PROCESS.md` | At session start — setup, Steps 0–3 |
+| `PROCESS.review.md` | After Step 3 — Stage 1: scoring and scratch pad |
+| `PROCESS.report.md` | After Stage 1 — Stage 2: report generation |
 
 When ready, follow Step 0 in `PROCESS.md` — confirm the developer's name before starting.
 
@@ -83,9 +93,10 @@ After import, the sessions are in `ingestion/cursor-chats/` and the normal analy
 ## Quick Reference — Script Order
 
 ```
-1. scripts/discover_cursor.py   ← find available sessions in .cursor
-2. scripts/import_cursor.py     ← copy chosen sessions into ingestion/
-3. scripts/extract_sessions.py  ← extract user messages → session_data.json
-4. scripts/analyse_sessions.py  ← compute stats + sample → analysis_stats.json
-5. Run the full analysis         ← follow PROCESS.md Steps 3 onwards
+1. scripts/discover_cursor.py    ← find available sessions in .cursor
+2. scripts/import_cursor.py      ← copy chosen sessions into ingestion/
+3. scripts/extract_sessions.py   ← extract user messages → session_data.json
+4. scripts/analyse_sessions.py   ← compute stats + sample → analysis_stats.json
+5. Load PROCESS.review.md        ← Stage 1: read sessions from session_data.json, score, write scoring_scratch.json
+6. Load PROCESS.report.md        ← Stage 2: generate 3 output files from scoring_scratch.json
 ```

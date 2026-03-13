@@ -20,12 +20,14 @@ ingestion/other-chats/*/
 
 
 # -------------------------------------------------------
+# Temp folder — process artifacts, deleted after each run
+# -------------------------------------------------------
+temp/
+
+# -------------------------------------------------------
 # Common extras
 # -------------------------------------------------------
 .DS_Store
 Thumbs.db
 *.pyc
 __pycache__/
-session_data.json
-analysis_stats.json
-discovery_report.json

@@ -1,0 +1,129 @@
+---
+description: AI Prompting Review — Cursor-native bootstrap. Loads automatically on every session in this workspace.
+alwaysApply: true
+---
+
+# AI Prompting Review — Cursor Bootstrap
+
+You are running the AI Prompting Pattern Review inside Cursor.
+
+> **Do NOT read `CLAUDE.md`** — it contains Claude Cowork-specific instructions that do not apply here. Use this rule and `PROCESS.md` instead.
+
+---
+
+## What This Workspace Does
+
+This workspace analyses a developer's AI session history and produces three outputs:
+- `[Name]-Prompting-Analysis.md` — full narrative report with examples and recommendations
+- `[Name]-Scorecard.html` — interactive HTML scorecard
+- `scorecard-template.md` — portable markdown scorecard
+
+Read `PROCESS.md` for setup steps and orientation. The process is split across three files — load each one only when you reach that stage:
+
+| File | Load when |
+|---|---|
+| `PROCESS.md` | At session start — setup, Steps 0–3 |
+| `PROCESS.review.md` | After Step 3 — Stage 1: scoring and scratch pad |
+| `PROCESS.report.md` | After Stage 1 — Stage 2: report generation |
+
+Everything in `PROCESS.md` applies here **except** the import steps — those are handled differently in Cursor (see below).
+
+---
+
+## Developer Name
+
+Cursor injects the machine username via `<user_info>`. Use it as the default name for report folders and labels, but **confirm with the user before proceeding** — they may be running the review for someone else.
+
+Ask this as your **first message** and **wait for the user's response before doing anything else** — do not list projects, run scripts, or take any other action until the name is confirmed.
+
+> "Who are we generating this report for? (Defaulting to [username] — is that right?)"
+
+---
+
+## Session Start — Guided Question Sequence
+
+**Ask only one question at a time. Wait for the user's answer before asking the next question or taking any action.** The sequence is:
+
+1. **Confirm name** → wait for response
+2. **Ask chat source** → wait for response
+3. **Show projects and ask which to include** → wait for response
+4. **Run extraction**
+
+Once the name is confirmed, ask:
+
+> "Would you like to review your **Cursor chats**, or do you have **other chat exports** (ChatGPT, Windsurf, etc.) to analyse?"
+
+Wait for the response, then follow the appropriate path below.
+
+---
+
+## Path A — Cursor Chats (Direct Source)
+
+Since you are already running inside Cursor, you have direct filesystem access. **Do not use `import_cursor.py` or `discover_cursor.py`** — go straight to extraction.
+
+The `.cursor/projects/` path on this machine is:
+- **macOS:** `~/.cursor/projects/`
+- **Windows:** `C:\Users\[username]\.cursor\projects\`
+
+### Step 1 — Ask which projects and time window
+
+Show the user the available projects by listing `~/.cursor/projects/` (or the Windows equivalent). Then ask:
+
+> "Which of these projects would you like to include in the review? You can pick one, several, or all. Do you want to limit to a specific time window (e.g. last 30 days)?"
+
+### Step 2 — Run extraction directly from source
+
+Once the user has chosen, run `extract_sessions.py` with `--source` pointing directly at the `.cursor/projects/` directory. **No import step needed.**
+
+```
+python scripts/extract_sessions.py --source ~/.cursor/projects
+python scripts/extract_sessions.py --source ~/.cursor/projects --days 30
+python scripts/extract_sessions.py --source ~/.cursor/projects --projects project-slug-a project-slug-b
+python scripts/extract_sessions.py --source ~/.cursor/projects --days 30 --projects project-slug-a
+```
+
+Use `--projects` to filter to the slugs the user chose. Use `--days` if they specified a time window.
+
+### Step 3 — Continue with PROCESS.md
+
+After extraction, continue from **Step 3** in `PROCESS.md` (`analyse_sessions.py` and onwards). The ingestion folder is not used in this path.
+
+---
+
+## Path B — Other Chats (Drop Zone)
+
+If the user has chat exports from another tool (ChatGPT, Windsurf, Copilot, etc.):
+
+1. Direct them to place their files in `ingestion/other-chats/`
+2. Let them know this path is still being developed — full guided import workflows for other tools are on the roadmap (see `ROADMAP.md`)
+3. Once files are in place, proceed with whatever extraction method applies to that source
+
+---
+
+## Script Reference
+
+| Script | When to use |
+|---|---|
+| `scripts/extract_sessions.py --source PATH` | Cursor path — reads directly from `.cursor/projects/` |
+| `scripts/extract_sessions.py` | Manual drop — reads from `ingestion/cursor-chats/` |
+| `scripts/analyse_sessions.py` | Always — runs after extract, produces `analysis_stats.json` |
+| `scripts/discover_cursor.py` | Not needed in Cursor — for Claude Cowork only |
+| `scripts/import_cursor.py` | Not needed in Cursor — for Claude Cowork only |
+
+---
+
+## Context Optimisation — Important
+
+When running the analysis (Step 3 onwards), follow these rules to avoid unnecessary context burn:
+
+**Read `temp/session_data.json` for session content — never the raw source JSONL files.**
+`temp/session_data.json` (produced by `extract_sessions.py`) contains only user messages. The raw JSONL files in `~/.cursor/projects/` include full assistant responses which are not needed for scoring and will consume significant context. Look up sampled sessions by `id` from `temp/session_data.json`; the `user_messages` array has everything needed.
+
+**Do not re-read `PROCESS.md` during analysis or report generation.**
+`PROCESS.md` covers setup only (Steps 0–3). Once you are past Step 3, load `PROCESS.review.md` for scoring — it contains the full rubric. Load `PROCESS.report.md` for report generation. There is nothing in `PROCESS.md` you need after the scripts have run.
+
+---
+
+## Reminder
+
+This rule handles the Cursor-specific session start and import flow only. Follow `PROCESS.md` Steps 0–3, then `PROCESS.review.md` for scoring, then `PROCESS.report.md` for report generation. Do not load `PROCESS.review.md` or `PROCESS.report.md` before you need them.

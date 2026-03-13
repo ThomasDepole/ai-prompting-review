@@ -114,7 +114,7 @@ To improve: Add one line to complex prompts: "Don't change [X]." For feature wor
 What it measures: Quality of information shared when something is broken. Effective format: triggering action → expected behavior → actual behavior → relevant logs.
 Low (1–2): "It's not working" or a log paste with no context. AI needs multiple follow-ups before it can diagnose.
 High (4–5): Every bug report includes what was done, what was expected, what happened, and the log. AI diagnoses in one turn.
-To improve: Use this template: "I navigated to [X] and clicked [Y]. I expected [Z]. Instead: [actual]. Here's the log: [paste]."
+To improve: Three short lines before the log is all that's needed — no paragraph walkthrough required. Template: "I [did X]. I expected [Y]. Instead: [Z]. Here's the log:" For build/compile errors, ask the AI to run the build directly so it sees the output first-hand. Reserve the three-line format for behavioral and environment errors where the AI can't observe the result itself.
 
 ---
 

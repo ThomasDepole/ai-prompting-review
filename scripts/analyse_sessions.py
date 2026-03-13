@@ -27,8 +27,9 @@ from collections import defaultdict
 # ── Config ────────────────────────────────────────────────────────────────────
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-INPUT_FILE = os.path.join(BASE_DIR, "session_data.json")
-OUTPUT_FILE = os.path.join(BASE_DIR, "analysis_stats.json")
+TEMP_DIR = os.path.join(BASE_DIR, "temp")
+INPUT_FILE = os.path.join(TEMP_DIR, "session_data.json")
+OUTPUT_FILE = os.path.join(TEMP_DIR, "analysis_stats.json")
 
 # Session size thresholds (by user turns)
 SMALL_MAX = 3     # 1–3 turns
@@ -261,7 +262,7 @@ def compute_aggregate(session_stats):
 
 def main():
     if not os.path.exists(INPUT_FILE):
-        print(f"ERROR: session_data.json not found at {INPUT_FILE}")
+        print(f"ERROR: temp/session_data.json not found at {INPUT_FILE}")
         print("Run extract_sessions.py first.")
         sys.exit(1)
 
