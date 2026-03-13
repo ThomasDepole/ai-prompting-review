@@ -4,7 +4,7 @@ A structured workspace for analysing how developers use AI coding tools — and 
 
 Feed it a developer's session history and it produces a full narrative report, an interactive HTML scorecard, and a portable markdown scorecard. The analysis covers 9 prompting dimensions scored 1–5, with concrete examples pulled directly from their sessions and specific recommendations for improvement.
 
-Works with any AI agent. Claude users get zero-friction setup — `CLAUDE.md` loads the process automatically. Everyone else can use `STARTER_PROMPT.md` to bootstrap in seconds.
+Works with any AI agent. **Cursor users** get native support — open this folder in Cursor and the workspace rule loads automatically, no setup required. Claude users have `CLAUDE.md` auto-loaded. Everyone else can use `STARTER_PROMPT.md` to bootstrap in seconds.
 
 ---
 
@@ -12,8 +12,8 @@ Works with any AI agent. Claude users get zero-friction setup — `CLAUDE.md` lo
 
 - [What You Get](#what-you-get)
 - [Quick Start](#quick-start)
-- [Importing Your Cursor Sessions](#importing-your-cursor-sessions)
 - [Starter Prompts](#starter-prompts)
+- [Importing Sessions (Claude / Other Agents)](#importing-your-cursor-sessions)
 - [Folder Structure](#folder-structure)
 - [The Scoring Rubric](#the-scoring-rubric)
 - [Supported Sources](#supported-sources)
@@ -36,9 +36,9 @@ All outputs land in `reports/[Developer-Name]/[YYYY-MM]/`. If a report already e
 
 ## Quick Start
 
-**Option A — Let the AI find and import your sessions automatically**
+**Option A — Open in Cursor or Claude and let the AI handle everything**
 
-Open this folder in Claude and say one of the [starter prompts](#starter-prompts) below. The AI will walk you through locating your `.cursor` folder and importing the sessions you want.
+Open this folder in Cursor or Claude and say one of the [starter prompts](#starter-prompts) below. The AI will find your session history and walk you through selecting what to include. In Cursor, no import step is needed — sessions are read directly from your `.cursor` folder.
 
 **Option B — Drop sessions in manually, then run the analysis**
 
@@ -54,15 +54,17 @@ Then tell the AI you're ready to run the analysis (see starter prompts below). A
 
 | Tool                              | How to start                                                                                      |
 | --------------------------------- | ------------------------------------------------------------------------------------------------- |
+| **Cursor**                        | Open this folder in Cursor — the workspace rule loads automatically. Use one of the Cursor starter prompts below. |
 | **Claude** (Cowork / Claude Code) | Open this folder — `CLAUDE.md` loads automatically. Use one of the starter prompts below.        |
-| **Cursor**                        | Copy `CLAUDE.md` contents into `.cursorrules`, then use one of the starter prompts below.        |
 | **Any other agent**               | Paste the contents of `STARTER_PROMPT.md` as your first message, then use a starter prompt.      |
 
 ---
 
 ## Importing Your Cursor Sessions
 
-Cursor stores your session history in a hidden `.cursor` folder on your computer. The AI can find and import your sessions automatically — you just need to give it the right folder path.
+> **Cursor users:** You don't need this section. The workspace rule reads your session history directly — no import step required. Just open this folder in Cursor and use one of the starter prompts above.
+
+For Claude and other agents, Cursor stores your session history in a hidden `.cursor` folder on your computer. The AI can find and import your sessions automatically — you just need to give it the right folder path.
 
 **When you ask to import sessions, the AI will give you three options:**
 
@@ -85,6 +87,39 @@ Once the AI has access, it will show you a table of all your Cursor projects wit
 ---
 
 ## Starter Prompts
+
+### Running inside Cursor
+
+No setup needed — just open this folder in Cursor and send one of these. The workspace rule handles everything automatically, including finding your session history directly from your `.cursor` folder.
+
+---
+
+**Run a review on all your Cursor chats:**
+> I would like to run a report on my past chats.
+
+---
+
+**Run a review limited to specific projects:**
+> I'd like to run a prompting review. Please include only sessions from [project name] and [project name].
+
+---
+
+**Run a review for the last N days:**
+> I want to review my prompting habits for the last 30 days across all my projects.
+
+---
+
+**Run a review for someone else:**
+> I'd like to run a prompting report for [Full Name] — they're a developer on my team. Can you walk me through it?
+
+---
+
+**Re-run and build on a previous report:**
+> I have a report from last month. Can you run a fresh analysis and build on the history?
+
+---
+
+### Running in Claude or another agent
 
 Copy and paste any of these to get started. Replace `[Name]` with the developer's full name.
 
@@ -110,11 +145,6 @@ Copy and paste any of these to get started. Replace `[Name]` with the developer'
 
 ---
 
-**Quick import only (no analysis yet):**
-> Can you help me find and import my Cursor session history into the ingestion folder? I'll run the analysis after.
-
----
-
 **Review a specific project only:**
 > Run a prompting analysis for [Name] using only the sessions from the [project name] project.
 
@@ -125,28 +155,41 @@ Copy and paste any of these to get started. Replace `[Name]` with the developer'
 ```
 ai-prompting-review/
 │
-├── PROCESS.md              ← The process guide (full methodology)
+├── PROCESS.md              ← Process guide — setup and Steps 0–3
+├── PROCESS.review.md       ← Stage 1: session scoring and scratch pad
+├── PROCESS.report.md       ← Stage 2: report generation
 ├── CLAUDE.md               ← Auto-loads in Claude; bootstraps the process
 ├── STARTER_PROMPT.md       ← Paste into any other AI agent to begin
 ├── README.md               ← This file
+├── ROADMAP.md              ← Planned improvements and completed changelog
 ├── .gitignore
 │
-├── ingestion/              ← Drop session files here before running
+├── .cursor/
+│   └── rules/
+│       └── prompting-review.mdc  ← Cursor workspace rule — loads automatically
+│
+├── ingestion/              ← Drop session files here (non-Cursor workflows)
 │   ├── cursor-chats/       ← Cursor AI .jsonl sessions, one folder per project
 │   └── other-chats/        ← Placeholder for future sources
 │
 ├── reports/                ← Generated outputs (gitignored)
 │   └── [Developer-Name]/
+│       ├── history.json    ← Trend tracking across runs
 │       └── [YYYY-MM]/
 │           ├── [Name]-Prompting-Analysis.md
 │           ├── [Name]-Scorecard.html
 │           └── scorecard-template.md
 │
 ├── scripts/                ← Python helper scripts (run from project root)
-│   ├── discover_cursor.py  ← Scans .cursor folder, lists available projects
-│   ├── import_cursor.py    ← Copies chosen sessions into ingestion/
-│   ├── extract_sessions.py ← Extracts user messages → session_data.json
-│   └── analyse_sessions.py ← Computes signal stats + sample → analysis_stats.json
+│   ├── extract_sessions.py ← Extracts user messages → temp/session_data.json
+│   ├── analyse_sessions.py ← Computes signal stats + sample → temp/analysis_stats.json
+│   ├── discover_cursor.py  ← Claude Cowork only: scans .cursor folder
+│   └── import_cursor.py    ← Claude Cowork only: copies sessions into ingestion/
+│
+├── temp/                   ← Process artifacts — gitignored, deleted after each run
+│   ├── session_data.json   ← Produced by extract_sessions.py
+│   ├── analysis_stats.json ← Produced by analyse_sessions.py
+│   └── scoring_scratch.json← Written during Stage 1, read by Stage 2
 │
 └── templates/              ← Master templates, never edit directly
     ├── analysis-report-template.md
