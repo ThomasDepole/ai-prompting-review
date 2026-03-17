@@ -31,3 +31,7 @@ temp/
 Thumbs.db
 *.pyc
 __pycache__/
+/_bakup
+analysis_stats.json
+discovery_report.json
+session_data.json
