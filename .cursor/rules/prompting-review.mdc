@@ -46,8 +46,9 @@ Ask this as your **first message** and **wait for the user's response before doi
 
 1. **Confirm name** → wait for response
 2. **Ask chat source** → wait for response
-3. **Show projects and ask which to include** → wait for response
-4. **Run extraction**
+3. **If `chats/` folder exists — ask whether to include CLI chats** → wait for response
+4. **Show projects and ask which to include** → wait for response
+5. **Run extraction**
 
 Once the name is confirmed, ask:
 
@@ -61,28 +62,62 @@ Wait for the response, then follow the appropriate path below.
 
 Since you are already running inside Cursor, you have direct filesystem access. **Do not use `import_cursor.py` or `discover_cursor.py`** — go straight to extraction.
 
-The `.cursor/projects/` path on this machine is:
-- **macOS:** `~/.cursor/projects/`
-- **Windows:** `C:\Users\[username]\.cursor\projects\`
+Cursor stores chat history in **two separate locations**:
 
-### Step 1 — Ask which projects and time window
+| Source | Path | Format | Contains |
+|---|---|---|---|
+| Agent / composer sessions | `.cursor/projects/[slug]/agent-transcripts/` | JSONL | Multi-step agent tasks |
+| Cursor CLI chat sessions | `.cursor/chats/` | SQLite | Chats from `cursor` CLI usage |
 
-Show the user the available projects by listing `~/.cursor/projects/` (or the Windows equivalent). Then ask:
+**The `chats/` folder is not present on all machines** — it only exists for developers who have installed and used Cursor CLI. Do not assume it exists; always check first.
+
+Paths on this machine:
+- **macOS:** `~/.cursor/projects/` and `~/.cursor/chats/`
+- **Windows:** `C:\Users\[username]\.cursor\projects\` and `C:\Users\[username]\.cursor\chats\`
+
+### Step 1 — Check for CLI chats and ask which projects to include
+
+**First**, check whether a `chats/` folder exists for this developer:
+- Windows: `C:\Users\[username]\.cursor\chats\`
+- macOS: `~/.cursor/chats/`
+
+**If the `chats/` folder exists and is non-empty**, ask:
+
+> "I can see you have Cursor CLI chat sessions on this machine — these are chats from when you've used the `cursor` command in the terminal. Would you like to include those in the review alongside your agent sessions?"
+
+Wait for the response before proceeding. If yes, use `--chats` in the extraction command. If no, omit it.
+
+**Then**, show the user the available projects by listing `~/.cursor/projects/` (or the Windows equivalent) and ask:
 
 > "Which of these projects would you like to include in the review? You can pick one, several, or all. Do you want to limit to a specific time window (e.g. last 30 days)?"
 
 ### Step 2 — Run extraction directly from source
 
-Once the user has chosen, run `extract_sessions.py` with `--source` pointing directly at the `.cursor/projects/` directory. **No import step needed.**
+Once the user has chosen, run `extract_sessions.py`. No import step needed.
 
+**Both sources (when developer has CLI chats and wants them included):**
+```
+python scripts/extract_sessions.py --source ~/.cursor/projects --chats ~/.cursor/chats
+python scripts/extract_sessions.py --source ~/.cursor/projects --chats ~/.cursor/chats --days 30
+python scripts/extract_sessions.py --source ~/.cursor/projects --chats ~/.cursor/chats --days 30 --projects slug-a slug-b
+```
+
+**Agent-transcripts only** (no `chats/` folder, or user declined to include CLI chats):
 ```
 python scripts/extract_sessions.py --source ~/.cursor/projects
 python scripts/extract_sessions.py --source ~/.cursor/projects --days 30
 python scripts/extract_sessions.py --source ~/.cursor/projects --projects project-slug-a project-slug-b
-python scripts/extract_sessions.py --source ~/.cursor/projects --days 30 --projects project-slug-a
 ```
 
-Use `--projects` to filter to the slugs the user chose. Use `--days` if they specified a time window.
+**CLI chats only** (rare — only if user wants CLI sessions exclusively):
+```
+python scripts/extract_sessions.py --chats ~/.cursor/chats
+python scripts/extract_sessions.py --chats ~/.cursor/chats --days 30
+```
+
+On Windows, replace `~/.cursor/` with `C:\Users\[username]\.cursor\` in all paths above.
+
+Use `--projects` to filter agent-transcripts to specific project slugs. Use `--days` if the user specified a time window.
 
 ### Step 3 — Continue with PROCESS.md
 
@@ -104,11 +139,52 @@ If the user has chat exports from another tool (ChatGPT, Windsurf, Copilot, etc.
 
 | Script | When to use |
 |---|---|
-| `scripts/extract_sessions.py --source PATH` | Cursor path — reads directly from `.cursor/projects/` |
-| `scripts/extract_sessions.py` | Manual drop — reads from `ingestion/cursor-chats/` |
+| `scripts/extract_sessions.py --source PATH --chats PATH` | Developer has CLI installed and wants CLI chats included |
+| `scripts/extract_sessions.py --source PATH` | Agent-transcripts only (no CLI, or user declined CLI chats) |
+| `scripts/extract_sessions.py --chats PATH` | CLI chats only (rare) |
+| `scripts/extract_sessions.py` | Manual drop — reads from `ingestion/cursor/projects/` (JSONL) and `ingestion/cursor/chats/` (SQLite) |
+| `scripts/extract_txt_sessions.py` | Manual drop — ingestion folder contains `.txt` plain-text transcripts (see below) |
 | `scripts/analyse_sessions.py` | Always — runs after extract, produces `analysis_stats.json` |
 | `scripts/discover_cursor.py` | Not needed in Cursor — for Claude Cowork only |
 | `scripts/import_cursor.py` | Not needed in Cursor — for Claude Cowork only |
+
+---
+
+## Ingestion Folder — Two Possible Formats
+
+When sessions have been manually dropped into `ingestion/cursor/projects/`, they may be in one of two formats. **Always check which format is present before running extraction.**
+
+### Format A — JSONL (standard)
+
+```
+ingestion/cursor/projects/[slug]/agent-transcripts/[uuid]/[uuid].jsonl
+```
+
+Each session is a subdirectory named by its UUID, containing a `.jsonl` file of the same name. Each line of the `.jsonl` file is a JSON object with `role` and `message` fields. Use `scripts/extract_sessions.py` (default mode, no flags needed).
+
+### Format B — Plain-text transcripts (`.txt`)
+
+```
+ingestion/cursor/projects/[slug]/agent-transcripts/[uuid].txt
+```
+
+Each session is a single `.txt` file directly inside `agent-transcripts/` (no subdirectory). The format uses `user:` / `assistant:` blocks with `<user_query>...</user_query>` tags wrapping each user prompt. **`extract_sessions.py` will silently return 0 sessions for this format** — the script looks for `[uuid]/[uuid].jsonl` subdirectories and won't find plain `.txt` files.
+
+**How to detect:** If `extract_sessions.py` reports `Total sessions: 0` when files are clearly present in the ingestion folder, run:
+
+```
+Get-ChildItem -Recurse ingestion\cursor\projects -Filter "*.txt" | Select-Object -First 3
+```
+
+If `.txt` files are found, use the fallback script instead. It accepts the same `--days` and `--projects` flags as `extract_sessions.py`:
+
+```
+python scripts/extract_txt_sessions.py
+python scripts/extract_txt_sessions.py --days 30
+python scripts/extract_txt_sessions.py --days 30 --projects slug-a slug-b
+```
+
+The output is identical `temp/session_data.json` — all downstream steps (`analyse_sessions.py` onwards) are unchanged.
 
 ---
 

@@ -70,6 +70,20 @@ The mounted path will be the path that was granted — use it exactly as provide
 
 Show the user the output table. It lists every Cursor project with session counts, last-active date, and size.
 
+### Step C2 — Check for CLI chats
+
+After running discovery, check whether a `chats/` folder exists inside the `.cursor` directory:
+- Windows: `[mounted path]\chats\`
+- macOS: `[mounted path]/chats/`
+
+**The `chats/` folder is only present on machines where Cursor CLI has been installed.** It stores chat sessions from CLI usage and is not tied to any specific project workspace.
+
+If the folder exists and is non-empty, ask the user:
+
+> "I can also see you have Cursor CLI chat sessions on this machine — these are chats from when you've used the `cursor` command in the terminal. Would you like to include those in the review as well?"
+
+Wait for their response before continuing. If yes, copy the `chats/` folder contents into `ingestion/cursor/chats/` alongside the project sessions.
+
 ### Step D — Ask which projects to import
 
 Ask the user: *"Which of these projects would you like to import for the review? You can pick one, several, or all of them. If you only want recent sessions, I can filter to the last N days."*
@@ -86,17 +100,28 @@ Omit `--days` if they want all sessions. Use multiple project slugs separated by
 
 ### Step F — Proceed with the analysis
 
-After import, the sessions are in `ingestion/cursor-chats/` and the normal analysis workflow applies. Ask for the developer's name (Step 0 in PROCESS.md) and continue from there.
+After import, the agent sessions are in `ingestion/cursor/projects/` and any CLI chat sessions are in `ingestion/cursor/chats/`. The normal analysis workflow applies. Ask for the developer's name (Step 0 in PROCESS.md) and continue from there.
 
 ---
 
 ## Quick Reference — Script Order
 
 ```
-1. scripts/discover_cursor.py    ← find available sessions in .cursor
-2. scripts/import_cursor.py      ← copy chosen sessions into ingestion/
-3. scripts/extract_sessions.py   ← extract user messages → session_data.json
-4. scripts/analyse_sessions.py   ← compute stats + sample → analysis_stats.json
-5. Load PROCESS.review.md        ← Stage 1: read sessions from session_data.json, score, write scoring_scratch.json
-6. Load PROCESS.report.md        ← Stage 2: generate 3 output files from scoring_scratch.json
+1. scripts/discover_cursor.py      ← find available sessions in .cursor
+2. scripts/import_cursor.py        ← copy chosen sessions into ingestion/
+3. scripts/extract_sessions.py     ← extract user messages → session_data.json
+   (or extract_txt_sessions.py     ← use this if ingestion contains .txt files — see note below)
+4. scripts/analyse_sessions.py     ← compute stats + sample → analysis_stats.json
+5. Load PROCESS.review.md          ← Stage 1: read sessions from session_data.json, score, write scoring_scratch.json
+6. Load PROCESS.report.md          ← Stage 2: generate 3 output files from scoring_scratch.json
 ```
+
+### Ingestion Format Detection
+
+After import, sessions in `ingestion/cursor/projects/` may be in one of two formats:
+
+**Format A — JSONL (standard):** `agent-transcripts/[uuid]/[uuid].jsonl` — subdirectory per session, JSON per line. Handled by `extract_sessions.py`.
+
+**Format B — Plain-text (`.txt`):** `agent-transcripts/[uuid].txt` — single file per session, `user:` / `assistant:` blocks with `<user_query>` tags. **`extract_sessions.py` returns 0 sessions silently for this format.**
+
+If step 3 produces `Total sessions: 0`, check whether `.txt` files are present in the ingestion projects folder. If yes, run `scripts/extract_txt_sessions.py` instead — it accepts the same `--days` and `--projects` flags as `extract_sessions.py` and produces an identical `temp/session_data.json`. All downstream steps are unchanged.

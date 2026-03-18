@@ -52,10 +52,16 @@ ai-prompting-review/
 ├── README.md                     ← Human-facing project overview
 │
 ├── ingestion/                    ← Drop session files here before running analysis
-│   ├── cursor-chats/             ← Cursor AI session JSONL files
-│   │   └── [project-name]/
-│   │       └── [uuid]/
-│   │           └── [uuid].jsonl
+│   ├── cursor/
+│   │   ├── projects/             ← Mirror of ~/.cursor/projects/ (JSONL agent sessions)
+│   │   │   └── [project-slug]/
+│   │   │       └── agent-transcripts/
+│   │   │           └── [uuid]/
+│   │   │               └── [uuid].jsonl
+│   │   └── chats/                ← Mirror of ~/.cursor/chats/ (SQLite regular chats)
+│   │       └── [workspace-hash]/
+│   │           └── [uuid]/
+│   │               └── store.db
 │   └── other-chats/              ← Placeholder for future chat sources
 │
 ├── reports/                      ← All analysis outputs go here (gitignored)
@@ -87,10 +93,11 @@ ai-prompting-review/
 
 ## Supported Session Sources
 
-| Source         | Format                              | Location                                                    |
-| -------------- | ----------------------------------- | ----------------------------------------------------------- |
-| Cursor AI      | `.jsonl` (one JSON object per line) | `ingestion/cursor-chats/[project-name]/[uuid]/[uuid].jsonl` |
-| Other (future) | TBD                                 | `ingestion/other-chats/`                                    |
+| Source | Format | Ingestion drop-zone | Direct flag |
+|---|---|---|---|
+| Cursor agent / composer | `.jsonl` (one JSON object per line) | `ingestion/cursor/projects/[slug]/agent-transcripts/[uuid]/[uuid].jsonl` | `--source ~/.cursor/projects` |
+| Cursor regular chats (Ctrl+L) | SQLite (`store.db`) | `ingestion/cursor/chats/[hash]/[uuid]/store.db` | `--chats ~/.cursor/chats` |
+| Other tools (future) | TBD | `ingestion/other-chats/` | — |
 
 The analysis framework is tool-agnostic — the 9 scoring categories and 5 maturity levels apply regardless of which AI coding tool was used.
 
@@ -100,22 +107,29 @@ The analysis framework is tool-agnostic — the 9 scoring categories and 5 matur
 
 ### Cursor AI Sessions
 
-Cursor stores session history as `.jsonl` files. Each session is a UUID-named subdirectory containing one `.jsonl` file.
+Cursor stores chat history in two separate locations. Both are valuable and should be included when available.
 
-**Where Cursor session files live:**
+**Agent / composer sessions (`.jsonl`):**
 
 | OS | Path |
 |---|---|
 | macOS | `~/.cursor/projects/[project-slug]/agent-transcripts/` |
 | Windows | `C:\Users\[username]\.cursor\projects\[project-slug]\agent-transcripts\` |
 
+**Regular Ctrl+L chats (SQLite):**
+
+| OS | Path |
+|---|---|
+| macOS | `~/.cursor/chats/` |
+| Windows | `C:\Users\[username]\.cursor\chats\` |
+
 **How to collect:**
 
 | Method | When to use |
 |---|---|
-| **Direct source** (`--source` flag) | Running in Cursor or any agent with filesystem access. No file copying needed. |
+| **Direct flags** (`--source` + `--chats`) | Running in Cursor or any agent with filesystem access. No file copying needed. |
 | **Import scripts** (`import_cursor.py`) | Running in Claude Cowork or another tool that needs files placed in `ingestion/` first. See `CLAUDE.md`. |
-| **Manual drop** | You already have the files. Place them in `ingestion/cursor-chats/[project-name]/[uuid]/[uuid].jsonl`. |
+| **Manual drop** | You already have the files. Copy project slug folders into `ingestion/cursor/projects/` and workspace hash folders into `ingestion/cursor/chats/`. |
 
 Aim for at least 10–15 sessions for meaningful pattern analysis.
 
@@ -198,39 +212,98 @@ If no existing report is found, create the folder at `reports/[Developer-Name]/[
 
 ### Step 1 — Load the Session Files
 
-Place the session folders in `ingestion/cursor-chats/[project-name]/`. The expected path is:
+**If using direct extraction (`--source` or `--chats` flags), skip this step** — no files need to be copied.
 
-```
-ingestion/cursor-chats/[project-name]/[uuid]/[uuid].jsonl
-```
+For manual drop, mirror the `.cursor/` folder structure into the `ingestion/cursor/` folder:
 
-*(If using `--source` for direct extraction, skip this step — no files need to be copied.)*
+| What to copy | From | Into |
+|---|---|---|
+| Agent/composer sessions | `~/.cursor/projects/[slug]/` | `ingestion/cursor/projects/[slug]/` |
+| Regular chats | `~/.cursor/chats/[hash]/` | `ingestion/cursor/chats/[hash]/` |
+
+The script navigates `agent-transcripts/` automatically — copy the entire project slug folder, not just the transcripts subfolder.
 
 ---
 
 ### Step 2 — Extract User Messages
 
+Cursor stores chat history in **two separate locations** that are not interchangeable:
+
+| Source | What it contains | Location |
+|---|---|---|
+| Agent / composer sessions | Multi-step agent tasks (less frequent, higher complexity) | `.cursor/projects/[slug]/agent-transcripts/` |
+| Regular Ctrl+L chats | Day-to-day chat history (most developers' primary usage) | `.cursor/chats/` |
+
+For most developers, **regular chats contain the majority of their prompting history**. Always use both sources when available.
+
 Run the extraction script from the project root:
 
-**Default — reads from `ingestion/cursor-chats/`:**
+**Default — reads from both ingestion drop-zones:**
 ```
 python scripts/extract_sessions.py
 ```
 
-**Direct source — reads from `.cursor/projects/` without copying files (Cursor workflow):**
+> **If this returns `Total sessions: 0` and files are clearly present in the ingestion folder**, the sessions may be in plain-text `.txt` format rather than JSONL. See the **Ingestion Format Detection** note below.
+
+**Both sources combined (recommended for Cursor workflow):**
+```
+python scripts/extract_sessions.py --source ~/.cursor/projects --chats ~/.cursor/chats
+python scripts/extract_sessions.py --source ~/.cursor/projects --chats ~/.cursor/chats --days 30
+```
+
+**Agent-transcripts only:**
 ```
 python scripts/extract_sessions.py --source ~/.cursor/projects
 python scripts/extract_sessions.py --source ~/.cursor/projects --days 30
 python scripts/extract_sessions.py --source ~/.cursor/projects --projects project-slug-a project-slug-b
 ```
 
+**Regular chats only** (for developers who rarely use agent mode):
+```
+python scripts/extract_sessions.py --chats ~/.cursor/chats
+python scripts/extract_sessions.py --chats ~/.cursor/chats --days 30
+```
+
+On Windows, replace `~/.cursor/` with `C:\Users\[username]\.cursor\` in all paths.
+
 | Flag | Description |
 |---|---|
-| `--source PATH` | Path to a `.cursor/projects/` directory. Reads `agent-transcripts` directly. |
-| `--days N` | Only include sessions modified in the last N days. Requires `--source`. |
-| `--projects SLUG...` | One or more project slugs to include. Omit to include all. Requires `--source`. |
+| `--source PATH` | Path to a `.cursor/projects/` directory. Reads `agent-transcripts` JSONL files. |
+| `--chats PATH` | Path to a `.cursor/chats/` directory. Reads regular chat SQLite databases. |
+| `--days N` | Only include sessions modified/created in the last N days. Works with both flags. |
+| `--projects SLUG...` | One or more project slugs to include (applies to `--source` only). |
 
-Output: `temp/session_data.json`. Contains only user messages — this is the file used for all session reading in Stage 1. The `temp/` folder is created automatically if it doesn't exist.
+Output: `temp/session_data.json`. Contains only user messages from all sources merged together — this is the file used for all session reading in Stage 1. The `temp/` folder is created automatically if it doesn't exist.
+
+---
+
+### Ingestion Format Detection — Two Possible Formats
+
+When sessions are manually dropped into `ingestion/cursor/projects/`, they may be in one of two formats. `extract_sessions.py` only handles Format A. If it returns 0 sessions when files are clearly present, check for Format B.
+
+**Format A — JSONL (standard, expected by `extract_sessions.py`):**
+```
+ingestion/cursor/projects/[slug]/agent-transcripts/[uuid]/[uuid].jsonl
+```
+Each session is a subdirectory named by UUID containing a `.jsonl` file. Each line is a JSON object with `role` and `message` fields.
+
+**Format B — Plain-text transcripts (`.txt`):**
+```
+ingestion/cursor/projects/[slug]/agent-transcripts/[uuid].txt
+```
+Each session is a single `.txt` file directly inside `agent-transcripts/` with no subdirectory. Uses `user:` / `assistant:` blocks with `<user_query>...</user_query>` tags. `extract_sessions.py` will silently return 0 sessions for this format.
+
+**To detect Format B**, check for `.txt` files in the ingestion projects folder:
+- Windows: `Get-ChildItem -Recurse ingestion\cursor\projects -Filter "*.txt" | Select-Object -First 3`
+- macOS/Linux: `find ingestion/cursor/projects -name "*.txt" | head -3`
+
+**If Format B is detected**, use the fallback script instead. It accepts the same `--days` and `--projects` flags as `extract_sessions.py`:
+```
+python scripts/extract_txt_sessions.py
+python scripts/extract_txt_sessions.py --days 30
+python scripts/extract_txt_sessions.py --days 30 --projects slug-a slug-b
+```
+The output is identical `temp/session_data.json` — all downstream steps (`analyse_sessions.py` onwards) are unchanged.
 
 ---
 

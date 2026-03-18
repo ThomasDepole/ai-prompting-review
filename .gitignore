@@ -10,12 +10,15 @@ reports/*/
 # -------------------------------------------------------
 # Ingestion session data — personal AI sessions, not committed
 # -------------------------------------------------------
-ingestion/cursor-chats/*/
+ingestion/cursor/projects/*/
+ingestion/cursor/chats/*/
 ingestion/other-chats/*/
 
 # Keep the READMEs so the folder structure is preserved in git
 !ingestion/README.md
-!ingestion/cursor-chats/README.md
+!ingestion/cursor/README.md
+!ingestion/cursor/projects/README.md
+!ingestion/cursor/chats/README.md
 !ingestion/other-chats/README.md
 
 
@@ -32,6 +35,3 @@ Thumbs.db
 *.pyc
 __pycache__/
 /_bakup
-analysis_stats.json
-discovery_report.json
-session_data.json
